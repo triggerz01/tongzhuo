@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { loadMixamoAnimation } from './mixamo.js';
+import { Expressions, STATE_FACE } from './expression.js';
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -55,6 +56,7 @@ const clips = {};
 let baseAction = null;
 let oneShot = null;
 let useMixamo = false;
+let face = null;   // 表情控制器
 
 const CANDIDATES = [
   '../assets/models/model2.vrm',
@@ -125,6 +127,9 @@ async function loadModel() {
     // 先推进一帧，让姿势真正生效，再按实际的胯/头位置取景
     if (mixer) mixer.update(0.033);
     v.update(0.033);
+    face = new Expressions(v);
+    console.log('[room] 表情通道:', [...face.available].join(', '));
+
     frameCamera();
 
     $('hint').style.display = 'none';
@@ -309,27 +314,8 @@ function updateIdle(dt) {
   if (!vrm || !bones || !rest) return;
   idle.t += dt;
 
-  /* 眨眼：随机间隔 + 28% 概率连眨两下 */
-  if (idle.blinkPhase < 0) {
-    idle.blinkNext -= dt;
-    if (idle.blinkNext <= 0) {
-      idle.blinkPhase = 0;
-      idle.blinkNext = 2.2 + Math.random() * 4.2;
-      idle.blinkDouble = Math.random() < 0.28;
-    }
-  } else {
-    idle.blinkPhase += dt;
-    const d = 0.13;
-    const v = idle.blinkPhase < d / 2
-      ? idle.blinkPhase / (d / 2)
-      : 1 - (idle.blinkPhase - d / 2) / (d / 2);
-    expr('blink', clamp(v, 0, 1));
-    if (idle.blinkPhase >= d) {
-      expr('blink', 0);
-      if (idle.blinkDouble) { idle.blinkDouble = false; idle.blinkPhase = 0; }
-      else idle.blinkPhase = -1;
-    }
-  }
+  // 眨眼、口型、情绪统一归 expression.js 管，这里不再碰表情通道，
+  // 否则两处会抢同一个 blink，互相把对方的值覆盖掉。
 
   // 有 Mixamo 动作时，身体归动作管；下面这些程序化的只在没有动作文件时兜底
   if (useMixamo) { updateClipScheduler(dt); return; }
@@ -382,8 +368,7 @@ function updateIdle(dt) {
         idle.headTargetY = -0.18 * ease;
         break;
       case 'yawn':
-        expr('aa', ease * 0.85);
-        expr('blink', ease * 0.9);
+        if (a.t < dt * 2 && face) face.yawn(1.8);   // 只在动作开头触发一次
         idle.headTargetY = -0.12 * ease;
         break;
       case 'shift':
@@ -393,7 +378,7 @@ function updateIdle(dt) {
     }
 
     if (p >= 1) {
-      if (a.def.name === 'yawn') { expr('aa', 0); expr('blink', 0); }
+
       if (bones.neck) bones.neck.rotation.z = rest.neck.z;
       if (bones.hips) bones.hips.rotation.y = rest.hips.y;
       idle.headTargetX = 0; idle.headTargetY = 0;
@@ -417,6 +402,7 @@ function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.1);
   if (mixer) mixer.update(dt);
+  if (face) face.update(dt);
   updateIdle(dt);
   if (vrm) vrm.update(dt);
   renderer.render(scene, camera);
@@ -499,7 +485,12 @@ function onPerception(m) {
   if (m.type === 'state') {
     const cn = LABEL_CN[m.label] || m.label;
     $('pipLabel').textContent = `${cn} · ${m.duration.toFixed(0)}s`;
-    if (m.label !== lastLabel) { lastLabel = m.label; paintCam(); }
+    if (m.label !== lastLabel) {
+      const prev = lastLabel;
+      lastLabel = m.label;
+      paintCam();
+      reactTo(m.label, prev);
+    }
     // 联动先只做最轻的一层：认出你走了，角色抬头看一眼
     if (m.trigger && m.label === 'away') play('lookAway');
   }
@@ -517,6 +508,25 @@ function onPerception(m) {
   if (m.type === 'mode') $('calibTip').textContent =
     OUTLINES[calibMode].tip + `　（画面 ${m.size ? m.size.join('×') : ''}）`;
   if (m.type === 'error') say('摄像头出错：' + m.message, 5000);
+}
+
+/** 摄像头判定 → 角色反应。表情是这里，动作也在这里。 */
+function reactTo(label, prev) {
+  if (!face) return;
+  // 从"不在"回到"在"：先高兴一下，这个比什么都自然
+  if ((prev === 'away' || prev === 'backturn') && label === 'focus') {
+    const b = STATE_FACE.back;
+    face.play(b.emotion, b.level, b.hold);
+    play('Head-Nod-Yes');
+    return;
+  }
+  const f = STATE_FACE[label];
+  if (!f) return;
+  if (f.emotion) face.play(f.emotion, f.level, f.hold);
+  else face.clearEmotion();
+  if (f.yawn) face.yawn(1.6);
+  if (label === 'phone') play('Look-Around');
+  if (label === 'covered') play('Head-Nod-Yes');
 }
 
 function setPip(on) {
@@ -786,6 +796,8 @@ function say(text, ms) {
   el.classList.add('on');
   if (lineTimer) clearTimeout(lineTimer);
   lineTimer = setTimeout(() => el.classList.remove('on'), ms || 3600);
+  // 弹了气泡却不张嘴，看起来是"字幕"不是"说话"。按字数估个时长。
+  if (face && text) face.talk(Math.min(4, 0.28 + text.length * 0.14));
 }
 
 /* 会话计时（巡查逻辑下一步接上） */
@@ -864,6 +876,11 @@ window.TZRoom = {
   },
   actions: () => useMixamo ? Object.keys(clips) : ACTIONS.map(a => a.name),
   usingMixamo: () => useMixamo,
+  face: () => (face ? face.dump() : null),
+  emote: (n, lv, hold) => face && face.play(n, lv ?? 0.8, hold ?? 3),
+  talk: (sec) => face && face.talk(sec ?? 2),
+  yawn: () => face && face.yawn(),
+  react: reactTo,
   pip: setPip,
   calib: (m) => { if (m) { calibMode = m; } openCalib(); },
   wsState: () => (ws ? ws.readyState : -1),

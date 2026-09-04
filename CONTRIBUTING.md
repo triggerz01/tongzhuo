@@ -44,6 +44,7 @@ git tag day1-end && git push --tags
 | `assets/` | 甲 | 模型、场景图 |
 | `perception/*.py` | 乙 | 摄像头判定，**独立进程，不碰前端** |
 | `renderer/patrol.js`（待建） | 乙 | 随机巡查 + 军功币记账 |
+| `renderer/expression.js` | 甲 | 表情、口型、情绪与摄像头联动 |
 | `renderer/persona.js` | 谁写文案谁改 | 纯文本，冲突也好解 |
 
 **共享文件，改之前在群里说一声**：
