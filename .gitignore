@@ -11,3 +11,11 @@ data/
 snapshots/
 .DS_Store
 Thumbs.db
+
+# ---- 大文件不进仓库 ----
+# 国内拉 GitHub 很慢，30MB 的二进制会让 clone 变成酷刑。
+# 这些文件通过微信/网盘单独发，丢进对应目录即可，代码会自动扫描识别。
+# 缺哪一类的说明见 assets/README.md
+*.vrm
+*.fbx
+*.task
