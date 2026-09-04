@@ -466,13 +466,21 @@ function connectPerception() {
   ws.onmessage = (ev) => {
     // 二进制 = 画中人的一帧
     if (ev.data instanceof Blob) {
-      if (!pipOn) return;
+      if (!pipOn && !calibOpen) return;
       const url = URL.createObjectURL(ev.data);
-      const img = $('pipImg');
-      const prev = lastBlob;
-      img.onload = () => { if (prev) URL.revokeObjectURL(prev); };
-      img.src = url;
-      lastBlob = url;
+      if (calibOpen) {
+        const ci = $('calibImg'), cprev = calibBlob;
+        ci.onload = () => { if (cprev) URL.revokeObjectURL(cprev); };
+        ci.src = url;
+        calibBlob = url;
+        if (!pipOn) return;              // 只喂校准框，别再建一个 URL
+      }
+      if (pipOn) {
+        const img = $('pipImg'), prev = lastBlob;
+        img.onload = () => { if (prev && prev !== url) URL.revokeObjectURL(prev); };
+        img.src = url;
+        lastBlob = url;
+      }
       return;
     }
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
@@ -498,7 +506,18 @@ function onPerception(m) {
     if (m.trigger && m.label === 'away') play('lookAway');
   }
   if (m.type === 'calibrating') say('保持你平时看书的姿势，15 秒…', 15000);
-  if (m.type === 'calibrated') say(m.ok ? '记住你的姿势了。' : ('标定失败：' + (m.reason || '')), 4000);
+  if (m.type === 'calibrated') {
+    say(m.ok ? '记住你的姿势了。' : ('标定失败：' + (m.reason || '')), 4000);
+    if (calibOpen) {
+      $('calibGo').disabled = false;
+      $('calibMsg').textContent = m.ok
+        ? `标定完成（采到 ${m.frames || 0} 帧）。可以关掉了。`
+        : '标定失败：' + (m.reason || '没采到足够人脸，正对摄像头重试');
+      if (m.ok) setTimeout(closeCalib, 1600);
+    }
+  }
+  if (m.type === 'mode') $('calibTip').textContent =
+    OUTLINES[calibMode].tip + `　（画面 ${m.size ? m.size.join('×') : ''}）`;
   if (m.type === 'error') say('摄像头出错：' + m.message, 5000);
 }
 
@@ -514,6 +533,91 @@ function play(name) {
   if (useMixamo && clips[name]) return playClip(name);
   const d = ACTIONS.find(a => a.name === name);
   if (d) idle.action = { def: d, t: 0 };
+}
+
+
+/* ---------------- 摄像头校准 ---------------- */
+/* 轮廓线不是相机控制，是给人看的定位参考——摄像头不支持变焦
+ * （实测 CAP_PROP_ZOOM 设置失败），纵向视野是镜头定死的，
+ * 想拍到桌面只能物理挪。轮廓线告诉用户挪到什么程度。 */
+
+// viewBox 320x180，和预览图的 16:9 对齐
+const OUTLINES = {
+  office: {
+    // 电脑办公：头肩占中间，像证件照的取景框
+    svg: `
+      <ellipse cx="160" cy="72" rx="34" ry="43"/>
+      <path d="M104,180 C106,140 128,120 160,120 C192,120 214,140 216,180"/>
+      <line x1="160" y1="8" x2="160" y2="24" class="tick"/>
+      <text x="160" y="172" class="lb">头肩落在框里就行</text>`,
+    tip: '让脸清楚地落在椭圆里，肩膀大致贴着下面的弧线'
+  },
+  desk: {
+    // 桌面读写：头要更小更靠上，给手臂和桌面留出下半张画面
+    svg: `
+      <ellipse cx="160" cy="50" rx="25" ry="31"/>
+      <path d="M112,128 C116,96 134,84 160,84 C186,84 204,96 208,128"/>
+      <path d="M112,128 C92,134 72,146 62,168" class="arm"/>
+      <path d="M208,128 C228,134 248,146 258,168" class="arm"/>
+      <line x1="16" y1="150" x2="304" y2="150" class="desk"/>
+      <text x="160" y="166" class="lb">桌沿要在这条线附近</text>
+      <line x1="160" y1="8" x2="160" y2="20" class="tick"/>`,
+    tip: '头缩到上半部分，两只手臂和桌面都要进画面'
+  }
+};
+
+let calibMode = 'office';
+let calibOpen = false;
+let calibBlob = null;
+let calibTimer = null;
+
+function renderOutline() {
+  const o = OUTLINES[calibMode];
+  $('calibSvg').innerHTML = `
+    <defs><style>
+      ellipse,path{fill:none;stroke:#7fd39a;stroke-width:1.6;stroke-dasharray:6 4}
+      path.arm{stroke:#7fd39a;stroke-width:1.4;stroke-dasharray:4 5;opacity:.75}
+      line.desk{stroke:#e0b366;stroke-width:1.4;stroke-dasharray:8 5}
+      line.tick{stroke:#7fd39a;stroke-width:1.4}
+      text.lb{fill:#9fb0a6;font-size:8px;text-anchor:middle;font-family:monospace}
+    </style></defs>${o.svg}`;
+  $('calibTip').textContent = o.tip;
+  document.querySelectorAll('[data-mode]').forEach(b =>
+    b.classList.toggle('on', b.getAttribute('data-mode') === calibMode));
+}
+
+function openCalib() {
+  calibOpen = true;
+  $('calib').classList.add('on');
+  renderOutline();
+  $('calibMsg').textContent = '对好位置后点右边，保持姿势 15 秒';
+  if (!wsSend({ cmd: 'preview', on: true })) {
+    $('calibTip').textContent = '感知层没连上，先启动 perception/server.py';
+  }
+}
+
+function closeCalib() {
+  calibOpen = false;
+  $('calib').classList.remove('on');
+  if (calibTimer) { clearInterval(calibTimer); calibTimer = null; }
+  if (calibBlob) { URL.revokeObjectURL(calibBlob); calibBlob = null; }
+  // 校准时是临时开的预览，关掉时按用户原来的意愿恢复
+  wsSend({ cmd: 'preview', on: pipOn });
+}
+
+function startCalib() {
+  if (!wsSend({ cmd: 'calibrate', seconds: 15 })) {
+    $('calibMsg').textContent = '感知层没连上';
+    return;
+  }
+  let left = 15;
+  $('calibGo').disabled = true;
+  $('calibMsg').textContent = `保持姿势不要动… ${left}`;
+  calibTimer = setInterval(() => {
+    left -= 1;
+    $('calibMsg').textContent = left > 0 ? `保持姿势不要动… ${left}` : '正在计算基线…';
+    if (left <= 0) { clearInterval(calibTimer); calibTimer = null; }
+  }, 1000);
 }
 
 /* ---------------- 场景与 UI ---------------- */
@@ -630,6 +734,16 @@ $('btnStart').addEventListener('click', startSession);
 $('btnStop').addEventListener('click', stopSession);
 $('btnReload').addEventListener('click', () => loadModel());
 $('btnScene').addEventListener('click', () => applyScene(sceneIdx + 1));
+$('btnCalib').addEventListener('click', openCalib);
+$('calibCancel').addEventListener('click', closeCalib);
+$('calibGo').addEventListener('click', startCalib);
+document.querySelectorAll('[data-mode]').forEach(b => {
+  b.addEventListener('click', () => {
+    calibMode = b.getAttribute('data-mode');
+    renderOutline();
+    wsSend({ cmd: 'mode', mode: calibMode });
+  });
+});
 $('btnPip').addEventListener('click', () => setPip(!pipOn));
 $('pipClose').addEventListener('click', () => setPip(false));
 $('btnPose').addEventListener('click', () => {
@@ -659,6 +773,7 @@ window.TZRoom = {
   actions: () => useMixamo ? Object.keys(clips) : ACTIONS.map(a => a.name),
   usingMixamo: () => useMixamo,
   pip: setPip,
+  calib: (m) => { if (m) { calibMode = m; } openCalib(); },
   wsState: () => (ws ? ws.readyState : -1),
   debugPos: () => {
     const v3 = new THREE.Vector3();

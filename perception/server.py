@@ -1,14 +1,20 @@
 """server.py — 感知层服务
 
-以 2 FPS 采样摄像头，做本地推理，把「用户状态」通过 WebSocket 推给桌面端。
+采集摄像头 → 本地推理 → 把「用户状态」通过 WebSocket 推给桌面端。
 
-  * 画面不落盘、不出本机，只发送标签与时长。
+  * 画面不落盘、不出本机，只发送标签与带标注的预览帧。
   * 休息 / 暂停时摄像头真正释放，不是软暂停。
   * 未装 mediapipe 时直接退出，桌面端会自动降级为纯陪伴模式。
 
+三档帧率是刻意分开的（这是画中人不卡的关键）：
+  采集 15 FPS  → 画中人流畅
+  人脸 5 FPS   → 标注框跟得上，CPU 又不炸
+  手机 2 FPS   → YOLO 最贵，压到最低
+画中人关掉时三档一起降到 2 FPS，回到最省电的状态。
+
 用法：
     python server.py            # 默认 ws://127.0.0.1:8765
-    python server.py --show     # 调试：开一个预览窗看检测结果
+    python server.py --show     # 调试：开一个本地预览窗
 """
 from __future__ import annotations
 
@@ -28,9 +34,27 @@ try:
 except ImportError:  # pragma: no cover
     raise SystemExit("缺少 websockets：pip install websockets")
 
-FPS = 2.0                 # PRD §5 补漏 3：2 FPS 足够，30 FPS 会烧 CPU
-FPS_CONFIRM = 5.0         # 检出手机后短时升频确认
-CONFIRM_SEC = 6.0
+# ---- 帧率 ----
+CAPTURE_FPS_PREVIEW = 15.0
+CAPTURE_FPS_IDLE = 2.0
+FACE_FPS_PREVIEW = 5.0
+FACE_FPS_IDLE = 2.0
+PHONE_FPS = 2.0
+PHONE_FPS_BOOST = 5.0      # 检出手机后短时升频确认
+BOOST_SEC = 6.0
+
+# ---- 取景模式 ----
+# 摄像头不支持变焦（实测 CAP_PROP_ZOOM 设置失败），纵向视野是镜头定死的。
+# 所以模式只影响分辨率和判定阈值，"拍得更宽"要靠用户挪摄像头——
+# 前端的轮廓线就是干这个的。
+MODES = {
+    # 电脑办公：只要人脸。4:3 够用，最省。
+    "office": {"w": 640, "h": 480, "label": "电脑办公"},
+    # 桌面读写：要看到手臂和桌面。16:9 横向更宽（实测比 4:3 宽一截），
+    # 分辨率也更高，手部细节更清楚。
+    "desk": {"w": 1280, "h": 720, "label": "桌面读写"},
+}
+DEFAULT_MODE = "office"
 
 
 class Perception:
@@ -42,9 +66,16 @@ class Perception:
         self.phone = PhoneDetector()
         self.clf = Classifier()
         self.clients: set = set()
-        self.running = False          # 是否正在采集
+        self.running = False
+        self.preview = False          # 画中人默认关：省 CPU，也是隐私上的默认值
+        self.mode = DEFAULT_MODE
+
+        self._last_face_at = 0.0
+        self._last_phone_at = 0.0
         self._boost_until = 0.0
-        self.preview = False          # 画中人默认关闭：省 CPU，也是隐私上的默认值
+        self._last_frame: Frame = Frame()      # 两次推理之间，标注沿用上一次的结果
+        self._last_res: dict = {"label": "unknown", "duration": 0.0,
+                                "trigger": False, "calibrating": False}
 
     # ---------- 摄像头 ----------
 
@@ -56,8 +87,13 @@ class Perception:
             cap = cv2.VideoCapture(self.cam_index)
         if not cap.isOpened():
             return False
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        m = MODES[self.mode]
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, m["w"])
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, m["h"])
+        try:
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)   # 少缓冲，画面更跟手
+        except Exception:
+            pass
         self.cap = cap
         return True
 
@@ -68,10 +104,18 @@ class Perception:
         if self.show:
             cv2.destroyAllWindows()
 
+    def set_mode(self, mode: str) -> bool:
+        if mode not in MODES or mode == self.mode:
+            return False
+        self.mode = mode
+        if self.cap is not None:       # 换分辨率必须重开
+            self.close_cam()
+            self.open_cam()
+        return True
+
     # ---------- 广播 ----------
 
-    async def broadcast_bytes(self, data: bytes) -> None:
-        """二进制消息一律是画中人的 JPEG 帧，前端据此区分，不用再包一层协议。"""
+    async def _send_all(self, data) -> None:
         if not self.clients:
             return
         dead = []
@@ -84,22 +128,16 @@ class Perception:
             self.clients.discard(ws)
 
     async def broadcast(self, msg: dict) -> None:
-        if not self.clients:
-            return
-        data = json.dumps(msg, ensure_ascii=False)
-        dead = []
-        for ws in list(self.clients):
-            try:
-                await ws.send(data)
-            except Exception:
-                dead.append(ws)
-        for ws in dead:
-            self.clients.discard(ws)
+        await self._send_all(json.dumps(msg, ensure_ascii=False))
+
+    async def broadcast_bytes(self, data: bytes) -> None:
+        """二进制消息一律是画中人的 JPEG 帧，前端据此区分，不用再包一层协议。"""
+        await self._send_all(data)
 
     # ---------- 主循环 ----------
 
     async def loop(self) -> None:
-        loop = asyncio.get_running_loop()
+        aloop = asyncio.get_running_loop()
         while True:
             if not self.running:
                 await asyncio.sleep(0.25)
@@ -110,49 +148,72 @@ class Perception:
                 self.running = False
                 continue
 
-            ok, bgr = await loop.run_in_executor(None, self.cap.read)
+            ok, bgr = await aloop.run_in_executor(None, self.cap.read)
             if not ok or bgr is None:
                 await asyncio.sleep(0.5)
                 continue
 
-            f = Frame(ts=time.time())
-            frame_stats(bgr, f)
-            # 画面全黑时没必要跑模型
-            if f.brightness >= 26 and f.variance >= 55:
-                self.face.analyze(bgr, f)
-                self.phone.detect(bgr, f)
+            now = time.time()
+            live = self.preview and bool(self.clients)
 
-            res = self.clf.push(f)
+            face_period = 1.0 / (FACE_FPS_PREVIEW if live else FACE_FPS_IDLE)
+            phone_fps = PHONE_FPS_BOOST if now < self._boost_until else PHONE_FPS
+            phone_period = 1.0 / phone_fps
 
-            if res.get("calibration") is not None:
-                await self.broadcast({"type": "calibrated", **res["calibration"]})
+            do_face = (now - self._last_face_at) >= face_period
+            do_phone = self.phone.ok and (now - self._last_phone_at) >= phone_period
 
-            if not res["calibrating"]:
-                await self.broadcast({
-                    "type": "state",
-                    "label": res["label"],
-                    "duration": res["duration"],
-                    "trigger": res["trigger"],
-                    "detail": res.get("detail", {}),
-                    "ts": f.ts,
-                })
+            if do_face:
+                self._last_face_at = now
+                f = Frame(ts=now)
+                frame_stats(bgr, f)
+                # 画面全黑时没必要跑模型
+                if f.brightness >= 26 and f.variance >= 55:
+                    self.face.analyze(bgr, f)
+                    if do_phone:
+                        self._last_phone_at = now
+                        self.phone.detect(bgr, f)
+                    else:
+                        # 沿用上一次的手机结果，避免标签在两次 YOLO 之间抖
+                        f.phone = self._last_frame.phone
+                        f.phone_near_face = self._last_frame.phone_near_face
+                        f.extra["phone_boxes"] = self._last_frame.extra.get("phone_boxes", [])
 
-            if self.preview and self.clients:
-                shot = preview.annotate(bgr, f, res["label"], res["duration"])
+                res = self.clf.push(f)
+                self._last_frame, self._last_res = f, res
+
+                if res.get("calibration") is not None:
+                    await self.broadcast({"type": "calibrated", **res["calibration"]})
+
+                if not res["calibrating"]:
+                    await self.broadcast({
+                        "type": "state",
+                        "label": res["label"],
+                        "duration": res["duration"],
+                        "trigger": res["trigger"],
+                        "detail": res.get("detail", {}),
+                        "ts": f.ts,
+                    })
+
+                if f.phone:
+                    self._boost_until = now + BOOST_SEC
+
+            # 画中人：每一帧都推，标注沿用最近一次的推理结果
+            if live:
+                shot = preview.annotate(bgr, self._last_frame,
+                                        self._last_res["label"],
+                                        self._last_res["duration"])
                 jpg = preview.encode(shot)
                 if jpg:
                     await self.broadcast_bytes(jpg)
 
-            if f.phone:
-                self._boost_until = time.time() + CONFIRM_SEC
-
             if self.show:
-                self._preview(bgr, res)
+                self._debug_window(bgr, self._last_res)
 
-            fps = FPS_CONFIRM if time.time() < self._boost_until else FPS
-            await asyncio.sleep(1.0 / fps)
+            cap_fps = CAPTURE_FPS_PREVIEW if live else CAPTURE_FPS_IDLE
+            await asyncio.sleep(1.0 / cap_fps)
 
-    def _preview(self, bgr, res) -> None:  # pragma: no cover - 调试用
+    def _debug_window(self, bgr, res) -> None:  # pragma: no cover - 调试用
         txt = f"{res['label']} {res['duration']}s"
         cv2.putText(bgr, txt, (12, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
         cv2.imshow("tongzhuo perception (debug)", bgr)
@@ -160,11 +221,19 @@ class Perception:
 
     # ---------- 指令 ----------
 
+    def _hello(self) -> str:
+        return json.dumps({
+            "type": "hello",
+            "phone": self.phone.ok,
+            "preview": self.preview,
+            "mode": self.mode,
+            "modes": {k: v["label"] for k, v in MODES.items()},
+            "fps": {"capture": CAPTURE_FPS_PREVIEW, "face": FACE_FPS_PREVIEW},
+        }, ensure_ascii=False)
+
     async def handle(self, ws) -> None:
         self.clients.add(ws)
-        await ws.send(json.dumps({"type": "hello", "fps": FPS,
-                                  "phone": self.phone.ok,
-                                  "preview": self.preview}, ensure_ascii=False))
+        await ws.send(self._hello())
         try:
             async for raw in ws:
                 try:
@@ -173,10 +242,10 @@ class Perception:
                     continue
                 cmd = msg.get("cmd")
 
-                if cmd == "start" or cmd == "resume":
+                if cmd in ("start", "resume"):
                     self.running = True
                     print("[perception] 采集开始")
-                elif cmd == "pause" or cmd == "stop":
+                elif cmd in ("pause", "stop"):
                     self.running = False
                     self.close_cam()          # 真正关闭，不是软暂停
                     print("[perception] 采集暂停，摄像头已释放")
@@ -184,12 +253,21 @@ class Perception:
                     self.preview = bool(msg.get("on"))
                     print(f"[perception] 画中人 {'开' if self.preview else '关'}")
                     await ws.send(json.dumps({"type": "preview", "on": self.preview}))
+                elif cmd == "mode":
+                    m = msg.get("mode")
+                    changed = self.set_mode(m)
+                    print(f"[perception] 取景模式 → {self.mode}")
+                    await ws.send(json.dumps({"type": "mode", "mode": self.mode,
+                                              "changed": changed,
+                                              "size": [MODES[self.mode]["w"],
+                                                       MODES[self.mode]["h"]]},
+                                             ensure_ascii=False))
                 elif cmd == "calibrate":
                     self.running = True
-                    self.clf.start_calibration(15.0)
+                    self.clf.start_calibration(float(msg.get("seconds", 15)))
                     await ws.send(json.dumps({"type": "calibrating", "seconds": 15},
                                              ensure_ascii=False))
-                    print("[perception] 开始 15 秒基线标定")
+                    print("[perception] 开始基线标定")
         finally:
             self.clients.discard(ws)
 
