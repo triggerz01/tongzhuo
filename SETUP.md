@@ -82,6 +82,11 @@ python server.py                # 加 --show 开预览窗看检测结果
 
 **注意 `-i https://mirrors.aliyun.com/pypi/simple/`**。清华源在有代理的环境下会 SSL 握手失败，实测报 `SSL: UNEXPECTED_EOF_WHILE_READING`。阿里、华为、腾讯源和官方源都正常。
 
+> **为什么 requirements.txt 把 mediapipe 锁在 1.0 以下**：mediapipe 1.0 移除了
+> `mp.solutions` 整个模块，而新的 Tasks API 需要额外下载 `.task` 模型文件
+> （走 Google CDN，国内大概率不通）。0.10.x 把模型打包在 wheel 里，装完就能离线跑。
+> **别手动升级 mediapipe。**
+
 `ultralytics` 会拉 torch（约 2GB），赶时间可以先不装——**不装也能跑**，只是手机检测那一类不生效。
 
 ---
