@@ -40,11 +40,20 @@ npm start
 
 ```bash
 cd perception
-python -m venv .venv
+py -3.12 -m venv .venv
 .venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 python server.py                # 加 --show 可以开预览窗调试
 ```
+
+> **国内网络注意**：如果机器上开着代理，`pypi.tuna.tsinghua.edu.cn` 可能握手失败（实测报 `SSL: UNEXPECTED_EOF_WHILE_READING`）。改用阿里源：
+>
+> ```bash
+> pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+> ```
+>
+> 同理，`winget` 和 `python.org` 的文件下载通道也可能不通。gh 可以从 GitHub releases 直接下 zip；Python 走 `registry.npmmirror.com/-/binary/python/`。
+> 另外 **Python 3.12 最后一个带 Windows 安装包的版本是 3.12.10**，之后只发源码。
 
 启动后桌面端会自动连上（`ws://127.0.0.1:8765`），角色头顶的小圆点变红表示摄像头在工作。
 

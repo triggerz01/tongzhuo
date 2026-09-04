@@ -51,9 +51,14 @@ TZ.Character = (function () {
     $('neck').setAttribute('fill', S.skin);
     ['hb0', 'hbL', 'hbR', 'hbBun'].forEach(k => $(k).setAttribute('fill', S.hair));
     $('hairFront').setAttribute('fill', S.hair);
-    $('armL').setAttribute('fill', o.torso);
-    $('armR').setAttribute('fill', o.torso);
-    $('torso').setAttribute('fill', o.torso);
+    // 描边：浅色服装贴在浅色桌面上时，没有描边整个身体会糊掉
+    const edge = 'rgba(20,24,28,.22)';
+    ['armL', 'armR', 'torso'].forEach(k => {
+      const e = $(k);
+      e.setAttribute('fill', o.torso);
+      e.setAttribute('stroke', edge);
+      e.setAttribute('stroke-width', 1.6);
+    });
     ['tie', 'tCollar', 'ribbon'].forEach(k => { const e = $(k); if (e) e.setAttribute('fill', S.acc); });
 
     ['fitSuit', 'fitTeacher', 'fitSchool'].forEach(k => {
