@@ -434,7 +434,7 @@ let pipOn = false;
 let lastBlob = null;
 
 const LABEL_CN = {
-  focus: '专注', away: '离席', phone: '玩手机',
+  focus: '专注', away: '离席', backturn: '背对镜头', phone: '玩手机',
   drowsy: '犯困', covered: '遮挡镜头', calibrating: '标定中', unknown: '—'
 };
 

@@ -25,7 +25,7 @@ DURATION = {
 }
 
 # 判定优先级：越靠前越优先（遮挡最明确，专注是兜底）
-PRIORITY = ["covered", "away", "phone", "drowsy", "focus"]
+PRIORITY = ["covered", "away", "backturn", "phone", "drowsy", "focus"]
 
 
 @dataclass
@@ -123,9 +123,10 @@ class Classifier:
         if f.brightness < 26 or f.variance < 55:
             return "covered"
 
-        # 一·离开画面
+        # 一·离开画面 vs 背对镜头：有没有人是两回事
+        # （画面里检出 person 但没脸 = 背对或趴桌，阈值更长，见 DURATION）
         if not f.face:
-            return "away"
+            return "backturn" if f.person else "away"
 
         # 三·手机（举到脸前的更快触发，交给 DURATION 区分）
         if f.phone:

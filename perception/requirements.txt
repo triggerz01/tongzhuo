@@ -9,6 +9,9 @@ mediapipe>=0.10.14
 numpy>=1.26.0
 websockets>=12.0
 
-# 可选：手机检测。会拉 torch，体积较大（~2GB）。
-# 不装也能跑，只是 phone 一类不生效。
-ultralytics>=8.2.0
+# 不需要 ultralytics / torch。
+# 手机与人体检测用的是 mediapipe 自带的 ObjectDetector +
+# EfficientDet-Lite0（13MB，已放在 models/ 随仓库分发）。
+# 原本打算用 YOLOv8n，但它依赖 torch —— 124MB 的 wheel 在国内网络下
+# 反复下不完（阿里、腾讯两个镜像都中途断）。换成 mediapipe 自带的之后
+# 零新依赖，模型还小了一个数量级。

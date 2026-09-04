@@ -27,6 +27,7 @@ _LABEL_CN = {
 _LABEL_EN = {
     "focus": "FOCUS",
     "away": "AWAY",
+    "backturn": "BACK TURNED",
     "phone": "PHONE",
     "drowsy": "DROWSY",
     "covered": "COVERED",
@@ -36,6 +37,7 @@ _LABEL_EN = {
 _LABEL_COLOR = {
     "focus": (140, 220, 140),
     "away": (170, 170, 170),
+    "backturn": (150, 180, 200),
     "phone": (90, 90, 240),
     "drowsy": (80, 190, 240),
     "covered": (200, 120, 220),

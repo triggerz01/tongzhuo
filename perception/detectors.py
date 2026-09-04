@@ -26,6 +26,7 @@ except Exception:  # pragma: no cover
     _HAS_MP = False
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "face_landmarker.task")
+OBJ_MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "efficientdet_lite0.tflite")
 
 
 @dataclass
@@ -41,6 +42,7 @@ class Frame:
     face_cy: float = 0.5        # 人脸中心纵向位置（趴桌时会下移）
     phone: bool = False
     phone_near_face: bool = False
+    person: bool = False   # 画面里有人但没脸 → 背对镜头/趴桌，而不是真的走了
     brightness: float = 0.0
     variance: float = 0.0
     extra: dict = field(default_factory=dict)
@@ -146,39 +148,75 @@ class FaceAnalyzer:
 
 
 class PhoneDetector:
-    """YOLOv8n + COCO 预训练：cell phone 是第 67 类，开箱即用，不用标数据。
+    """手机检测：MediaPipe ObjectDetector + EfficientDet-Lite0（COCO 80 类）。
 
-    未安装 ultralytics 时静默降级（phone 一类不生效，其余功能不受影响）。
+    原本打算用 ultralytics/YOLOv8n，但它依赖 torch —— 124MB 的 wheel 在
+    这个网络下反复下不完（试过阿里、腾讯两个镜像都中途断）。
+    而 mediapipe 我们已经装了，它自带的 ObjectDetector 同样是 COCO 训练的，
+    模型只有 13MB，走的还是下 face_landmarker 那个能通的源。
+    零新依赖，反而更省。
+
+    模型文件缺失时静默降级（phone 一类不生效，其余功能不受影响）。
     """
 
-    COCO_CELL_PHONE = 67
+    # 顺带认 person：没脸但有人 = 背对镜头或趴桌，和"真的离席"是两回事，
+    # 这两种在 PRD 里本来就是不同阈值的两条行为，之前没法区分。
+    TARGETS = ("cell phone", "person")
 
-    def __init__(self, weights: str = "yolov8n.pt", conf: float = 0.35) -> None:
-        self.conf = conf
+    def __init__(self, model_path: str = OBJ_MODEL_PATH, score: float = 0.35) -> None:
         self.ok = False
-        self._model = None
+        self._det = None
+        self._t0 = time.time()
+        if not _HAS_MP:
+            print("[perception] 手机检测未启用：没有 mediapipe")
+            return
+        if not os.path.exists(model_path):
+            print("[perception] 手机检测未启用：缺少 "
+                  + os.path.basename(model_path)
+                  + "  下载：https://storage.googleapis.com/mediapipe-models"
+                    "/object_detector/efficientdet_lite0/float32/latest"
+                    "/efficientdet_lite0.tflite")
+            return
         try:
-            from ultralytics import YOLO  # noqa: WPS433
-            self._model = YOLO(weights)
+            opts = mp_vision.ObjectDetectorOptions(
+                base_options=mp_python.BaseOptions(model_asset_path=model_path),
+                running_mode=mp_vision.RunningMode.VIDEO,
+                score_threshold=score,
+                category_allowlist=list(self.TARGETS),
+            )
+            self._det = mp_vision.ObjectDetector.create_from_options(opts)
             self.ok = True
         except Exception as exc:  # pragma: no cover
             print(f"[perception] 手机检测未启用：{exc}")
+
+    def close(self) -> None:
+        try:
+            if self._det:
+                self._det.close()
+        except Exception:
+            pass
 
     def detect(self, bgr: np.ndarray, out: Frame) -> Frame:
         if not self.ok:
             return out
         try:
-            res = self._model.predict(bgr, verbose=False, conf=self.conf,
-                                      classes=[self.COCO_CELL_PHONE])
+            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+            mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+            res = self._det.detect_for_video(mp_img, int((time.time() - self._t0) * 1000))
         except Exception as exc:  # pragma: no cover
-            print(f"[perception] YOLO 推理失败：{exc}")
+            print(f"[perception] 目标检测失败：{exc}")
             return out
 
         boxes = []
-        for r in res:
-            for b in r.boxes:
-                x1, y1, x2, y2 = [float(v) for v in b.xyxy[0].tolist()]
-                boxes.append((x1, y1, x2, y2))
+        for d in res.detections:
+            bb = d.bounding_box
+            name = d.categories[0].category_name if d.categories else ""
+            rect = (float(bb.origin_x), float(bb.origin_y),
+                    float(bb.origin_x + bb.width), float(bb.origin_y + bb.height))
+            if name == "person":
+                out.person = True
+            else:
+                boxes.append(rect)
         out.phone = len(boxes) > 0
         out.extra["phone_boxes"] = boxes
 
@@ -192,6 +230,33 @@ class PhoneDetector:
                     out.phone_near_face = True
                     break
         return out
+
+
+class AnyObjectDetector(PhoneDetector):
+    """调试用：不限类别，看看模型到底认出了什么。"""
+    TARGETS = ()
+
+    def __init__(self, model_path: str = OBJ_MODEL_PATH, score: float = 0.35) -> None:
+        self.ok = False
+        self._det = None
+        self._t0 = time.time()
+        if not _HAS_MP or not os.path.exists(model_path):
+            return
+        opts = mp_vision.ObjectDetectorOptions(
+            base_options=mp_python.BaseOptions(model_asset_path=model_path),
+            running_mode=mp_vision.RunningMode.VIDEO,
+            score_threshold=score,
+            max_results=10,
+        )
+        self._det = mp_vision.ObjectDetector.create_from_options(opts)
+        self.ok = True
+
+    def raw(self, bgr: np.ndarray):
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        res = self._det.detect_for_video(mp_img, int((time.time() - self._t0) * 1000))
+        return [(d.categories[0].category_name, round(d.categories[0].score, 2))
+                for d in res.detections]
 
 
 def frame_stats(bgr: np.ndarray, out: Frame) -> Frame:
