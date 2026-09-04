@@ -11,5 +11,6 @@ contextBridge.exposeInMainWorld('tz', {
   post: (msg) => ipcRenderer.send('bus', msg),
   onBus: (cb) => ipcRenderer.on('bus', (_e, msg) => cb(msg)),
   listModels: () => ipcRenderer.invoke('models:list'),
-  listScenes: () => ipcRenderer.invoke('scenes:list')
+  listScenes: () => ipcRenderer.invoke('scenes:list'),
+  listAnims: () => ipcRenderer.invoke('anims:list')
 });

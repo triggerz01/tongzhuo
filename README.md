@@ -91,6 +91,10 @@ tongzhuo/
 │   ├── gate.js          ★ 干预阶梯 + 频率闸门
 │   ├── session.js       会话状态机 未开始/陪伴中/休息中/已结束
 │   └── app.js           装配 + 感知层 WebSocket 客户端
+├── assets/
+│   ├── models/          .vrm 角色，丢进去自动识别
+│   ├── scenes/          场景背景图，丢进去自动识别
+│   └── animations/      Mixamo 动作 FBX，丢进去自动识别
 ├── perception/
 │   ├── server.py        2 FPS 采集循环 + WebSocket 服务
 │   ├── detectors.py     MediaPipe 头部姿态/闭眼 + YOLOv8n 手机 + 帧统计
@@ -106,6 +110,8 @@ tongzhuo/
 |---|---|
 | 桌面常驻角色（透明置顶、鼠标穿透、不抢焦点） | ✅ |
 | 待机生命（呼吸/眨眼/10 个行为/非周期调度） | ✅ |
+| 自习室窗口（3D VRM 角色 + 场景合成） | ✅ |
+| Mixamo 动捕动作（6 段，重定向到 VRM） | ✅ |
 | 模板 + 捏脸（3 套服装、9 个参数） | ✅ |
 | 会话状态机（时长/休息点/结束） | ✅ |
 | 干预阶梯 L1–L3 + 频率闸门 + 申诉静默 | ✅ |

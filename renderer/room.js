@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { loadMixamoAnimation } from './mixamo.js';
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -47,6 +48,13 @@ window.addEventListener('resize', resize);
 let vrm = null;
 let bones = null;
 let rest = null;   // 初始骨骼旋转，所有程序化动作在它之上叠加
+
+// Mixamo 动作。有动作文件时由它接管身体，程序化的那套只保留眨眼和表情。
+let mixer = null;
+const clips = {};
+let baseAction = null;
+let oneShot = null;
+let useMixamo = false;
 
 const CANDIDATES = [
   '../assets/models/model2.vrm',
@@ -107,13 +115,16 @@ async function loadModel() {
       lShoulder: g('leftUpperArm'), rShoulder: g('rightUpperArm'),
       lElbow: g('leftLowerArm'), rElbow: g('rightLowerArm')
     };
-    // VRM 的静止姿势是 T-pose（手臂平举）。先摆成坐在桌前的姿势，
-    // 再把它作为 rest 记下来——之后所有呼吸/动作都叠加在这个姿势上。
-    applyDeskPose();
+    // 有 Mixamo 动作就让动作定义姿势；没有才手动把 T-pose 掰成伏案坐姿
+    const gotAnims = await loadAnimations();
+    if (!gotAnims) applyDeskPose();
 
     rest = {};
     for (const k in bones) if (bones[k]) rest[k] = bones[k].rotation.clone();
 
+    // 先推进一帧，让姿势真正生效，再按实际的胯/头位置取景
+    if (mixer) mixer.update(0.033);
+    v.update(0.033);
     frameCamera();
 
     $('hint').style.display = 'none';
@@ -129,26 +140,80 @@ async function loadModel() {
   }
 }
 
+async function loadAnimations() {
+  if (!(window.tz && window.tz.listAnims)) return false;
+  let list = [];
+  try { list = await window.tz.listAnims(); } catch (e) { return false; }
+  if (!list.length) return false;
+
+  for (const a of list) {
+    try {
+      clips[a.name] = await loadMixamoAnimation(a.url, vrm);
+    } catch (e) {
+      console.warn('[room] 动作加载失败', a.name, e.message);
+    }
+  }
+  const names = Object.keys(clips);
+  if (!names.length) return false;
+
+  mixer = new THREE.AnimationMixer(vrm.scene);
+  const baseName = clips['Sitting-Idle'] ? 'Sitting-Idle'
+                 : clips['Breathing-Idle'] ? 'Breathing-Idle' : names[0];
+  baseAction = mixer.clipAction(clips[baseName]);
+  baseAction.play();
+
+  // 一次性动作播完，淡回底层循环
+  mixer.addEventListener('finished', () => {
+    if (!oneShot) return;
+    baseAction.enabled = true;
+    baseAction.setEffectiveWeight(1);
+    baseAction.crossFadeFrom(oneShot, 0.45, false);
+    oneShot = null;
+  });
+
+  useMixamo = true;
+  console.log('[room] 已加载动作:', names.join(', '), '底层循环:', baseName);
+  return true;
+}
+
+/** 插播一个一次性动作，播完自动淡回 */
+function playClip(name) {
+  const c = clips[name];
+  if (!c || !mixer || name === baseAction?.getClip().name) return false;
+  if (oneShot) oneShot.stop();
+  oneShot = mixer.clipAction(c);
+  oneShot.reset();
+  oneShot.setLoop(THREE.LoopOnce, 1);
+  oneShot.clampWhenFinished = true;
+  oneShot.setEffectiveWeight(1);
+  oneShot.crossFadeFrom(baseAction, 0.35, false).play();
+  return true;
+}
+
 /* 取景：背景图是坐姿平视拍的，3D 相机也必须水平看（不能俯仰），
  * 否则透视对不上，角色就会"浮"在背景前面。
  * HIP_AT 是让角色的胯落在画面纵向的哪个位置——背景图的桌沿大约在 85%，
  * 让胯压在桌沿上，上半身露出来，就读成"坐在桌前"。 */
-const framing = { hipAt: 0.90, headAt: 0.22, headroom: 0.12 };
+// 锚点用胸口而不是胯：坐姿时大腿会在屏幕上翻到胯以上，
+// 按胯取景会让桌沿挡不住腿和裙子。按胸口取景，桌沿以下全被遮住，
+// 画面就是"隔着桌子看到对面的人"——最自然的构图。
+const framing = { anchorAt: 0.88, headAt: 0.20, headroom: 0.12 };
 
 function frameCamera() {
-  if (!vrm || !bones || !bones.hips || !bones.head) return;
-  const hip = new THREE.Vector3(), head = new THREE.Vector3();
-  bones.hips.getWorldPosition(hip);
+  const anchorBone = bones && (bones.chest || bones.spine || bones.hips);
+  if (!vrm || !bones || !anchorBone || !bones.head) return;
+  const anchor = new THREE.Vector3(), head = new THREE.Vector3();
+  anchorBone.getWorldPosition(anchor);
   bones.head.getWorldPosition(head);
 
-  const topY = head.y + framing.headroom;            // 头顶（头骨往上留一点）
-  const span = topY - hip.y;                          // 要占据画面的那一段身体
-  const frac = framing.hipAt - framing.headAt;        // 这一段占画面高度的比例
+  const topY = head.y + framing.headroom;             // 头顶（头骨往上留一点）
+  const span = topY - anchor.y;                       // 要占据画面的那一段身体
+  const frac = framing.anchorAt - framing.headAt;     // 这一段占画面高度的比例
   const H = span / frac;                              // 该深度处的可视高度
   const d = H / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
 
   // 画面中心（50%）对应的世界高度
-  const centerY = hip.y + (framing.hipAt - 0.5) * H;
+  const centerY = anchor.y + (framing.anchorAt - 0.5) * H;
 
   camera.position.set(0, centerY, d);
   lookTarget.set(0, centerY, 0);                      // 水平视线，无俯仰
@@ -198,6 +263,34 @@ const ACTIONS = [
   { name: 'shift',     w: 3, dur: 2.0 }    // 换个坐姿
 ];
 
+/* Mixamo 动作的调度：和程序化那套同一个哲学——间隔非周期、有冷却、加权 */
+const CLIP_POOL = [
+  { name: 'Look-Around',     w: 4, cd: 40000 },
+  { name: 'Bored',           w: 3, cd: 70000 },
+  { name: 'Head-Nod-Yes',    w: 2, cd: 55000 },
+  { name: 'Sitting-Talking', w: 1.5, cd: 120000 },
+  { name: 'Breathing-Idle',  w: 2, cd: 90000 }
+];
+const clipLast = {};
+let clipNext = 10 + Math.random() * 12;
+
+function updateClipScheduler(dt) {
+  if (oneShot) return;              // 正在播一次性动作，不打断
+  clipNext -= dt;
+  if (clipNext > 0) return;
+  clipNext = 12 + Math.random() * 20;
+
+  const now = Date.now();
+  let pool = CLIP_POOL.filter(c => clips[c.name] && now - (clipLast[c.name] || 0) > c.cd);
+  if (!pool.length) return;
+  const total = pool.reduce((s, c) => s + c.w, 0);
+  let r = Math.random() * total;
+  for (const c of pool) {
+    r -= c.w;
+    if (r <= 0) { clipLast[c.name] = now; playClip(c.name); return; }
+  }
+}
+
 function pickAction() {
   const total = ACTIONS.reduce((s, a) => s + a.w, 0);
   let r = Math.random() * total;
@@ -212,7 +305,8 @@ function expr(name, value) {
 }
 
 function updateIdle(dt) {
-  if (!vrm || !bones) return;
+  // rest 要等动作文件加载完才有值，这期间渲染循环已经在跑了
+  if (!vrm || !bones || !rest) return;
   idle.t += dt;
 
   /* 眨眼：随机间隔 + 28% 概率连眨两下 */
@@ -236,6 +330,9 @@ function updateIdle(dt) {
       else idle.blinkPhase = -1;
     }
   }
+
+  // 有 Mixamo 动作时，身体归动作管；下面这些程序化的只在没有动作文件时兜底
+  if (useMixamo) { updateClipScheduler(dt); return; }
 
   /* 呼吸：胸腔和肩膀的低频起伏，永不静止 */
   const br = Math.sin(idle.t * 1.05) * 0.5 + 0.5;
@@ -319,6 +416,7 @@ const clock = new THREE.Clock();
 function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.1);
+  if (mixer) mixer.update(dt);
   updateIdle(dt);
   if (vrm) vrm.update(dt);
   renderer.render(scene, camera);
@@ -455,8 +553,22 @@ loadModel();
 // 供 CDP 调试与外部驱动
 window.TZRoom = {
   reload: loadModel,
-  play: (name) => { const d = ACTIONS.find(a => a.name === name); if (d) idle.action = { def: d, t: 0 }; },
-  actions: ACTIONS.map(a => a.name),
+  play: (name) => {
+    if (useMixamo && clips[name]) return playClip(name);
+    const d = ACTIONS.find(a => a.name === name);
+    if (d) idle.action = { def: d, t: 0 };
+    return !!d;
+  },
+  actions: () => useMixamo ? Object.keys(clips) : ACTIONS.map(a => a.name),
+  usingMixamo: () => useMixamo,
+  debugPos: () => {
+    const v3 = new THREE.Vector3();
+    const g = (n) => { const b = vrm.humanoid.getNormalizedBoneNode(n); return b ? +b.getWorldPosition(v3).y.toFixed(3) : null; };
+    const raw = (n) => { const b = vrm.humanoid.getRawBoneNode(n); return b ? +b.getWorldPosition(v3).y.toFixed(3) : null; };
+    return { normHead: g('head'), normHips: g('hips'), rawHead: raw('head'), rawHips: raw('hips'),
+             camY: +camera.position.y.toFixed(3), camZ: +camera.position.z.toFixed(3),
+             sceneY: +vrm.scene.getWorldPosition(v3).y.toFixed(3) };
+  },
   say,
   scene: applyScene,
   scenes: () => SCENES.map(s => s.name),
@@ -467,6 +579,8 @@ window.TZRoom = {
   fgTop: (v) => { $('fg').style.clipPath = `inset(${(v*100).toFixed(1)}% 0 0 0)`; return v; },
   info: () => ({
     loaded: !!vrm,
+    mixamo: useMixamo,
+    clips: Object.keys(clips),
     expressions: vrm && vrm.expressionManager ? Object.keys(vrm.expressionManager.expressionMap || {}) : [],
     bones: bones ? Object.keys(bones).filter(k => bones[k]) : []
   })

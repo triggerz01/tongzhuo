@@ -146,3 +146,15 @@ ipcMain.handle('scenes:list', () => {
       .map(f => ({ name: f.replace(/\.[^.]+$/, ''), url: '../assets/scenes/' + f }));
   } catch (e) { return []; }
 });
+
+// 列出 assets/animations 下的 Mixamo 动作
+ipcMain.handle('anims:list', () => {
+  const fs = require('fs');
+  const dir = path.join(__dirname, '..', 'assets', 'animations');
+  try {
+    return fs.readdirSync(dir)
+      .filter(f => f.toLowerCase().endsWith('.fbx'))
+      .sort()
+      .map(f => ({ name: f.replace(/\.fbx$/i, ''), url: '../assets/animations/' + encodeURIComponent(f) }));
+  } catch (e) { return []; }
+});
