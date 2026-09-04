@@ -57,6 +57,7 @@ let baseAction = null;
 let oneShot = null;
 let useMixamo = false;
 let face = null;   // 表情控制器
+let frozen = false;  // 冻结身体动作，只留表情——调表情时用
 
 const CANDIDATES = [
   '../assets/models/model2.vrm',
@@ -269,15 +270,39 @@ const ACTIONS = [
 ];
 
 /* Mixamo 动作的调度：和程序化那套同一个哲学——间隔非周期、有冷却、加权 */
+// 待机动作池。Sitting-Talking 拿掉了 —— 角色没在跟谁说话却比划个不停，
+// 看起来轻浮，和"安静陪你自习"的定位不符。
 const CLIP_POOL = [
-  { name: 'Look-Around',     w: 4, cd: 40000 },
-  { name: 'Bored',           w: 3, cd: 70000 },
-  { name: 'Head-Nod-Yes',    w: 2, cd: 55000 },
-  { name: 'Sitting-Talking', w: 1.5, cd: 120000 },
+  { name: 'Look-Around',     w: 5, cd: 40000 },
+  { name: 'Head-Nod-Yes',    w: 3, cd: 55000 },
+  { name: 'Bored',           w: 2, cd: 90000 },
   { name: 'Breathing-Idle',  w: 2, cd: 90000 }
 ];
 const clipLast = {};
 let clipNext = 10 + Math.random() * 12;
+
+/* 动作按"角色"匹配，不认死文件名 —— 你从 Mixamo 下什么名字都能用。
+ * 候选按优先级排，找到第一个存在的就用。 */
+const CLIP_ROLES = {
+  praise:     ['thumbsup', 'clapping', 'cheer', 'happyidle', 'excited', 'headnod'],
+  disappoint: ['handsonhips', 'angry', 'annoyed', 'arguing', 'dismiss', 'shakinghead', 'lookaround'],
+  lonely:     ['sadidle', 'defeat', 'disappoint', 'bored', 'breathingidle'],
+  welcome:    ['waving', 'happyidle', 'headnod', 'thumbsup'],
+  lookAround: ['lookaround'],
+  nod:        ['headnod']
+};
+
+const _norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function clipFor(role) {
+  const cands = CLIP_ROLES[role] || [];
+  const keys = Object.keys(clips);
+  for (const c of cands) {
+    const hit = keys.find(k => _norm(k).includes(c));
+    if (hit) return hit;
+  }
+  return null;
+}
 
 function updateClipScheduler(dt) {
   if (oneShot) return;              // 正在播一次性动作，不打断
@@ -401,9 +426,9 @@ const clock = new THREE.Clock();
 function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.1);
-  if (mixer) mixer.update(dt);
-  if (face) face.update(dt);
-  updateIdle(dt);
+  if (mixer && !frozen) mixer.update(dt);
+  if (face) face.update(dt);       // 冻结时表情照常跑，这是冻结的意义
+  if (!frozen) updateIdle(dt);
   if (vrm) vrm.update(dt);
   renderer.render(scene, camera);
 }
@@ -491,6 +516,7 @@ function onPerception(m) {
       paintCam();
       reactTo(m.label, prev);
     }
+    updateLongReactions(m.label);
     // 联动先只做最轻的一层：认出你走了，角色抬头看一眼
     if (m.trigger && m.label === 'away') play('lookAway');
   }
@@ -510,23 +536,76 @@ function onPerception(m) {
   if (m.type === 'error') say('摄像头出错：' + m.message, 5000);
 }
 
-/** 摄像头判定 → 角色反应。表情是这里，动作也在这里。 */
+/* 反应 = 表情 + 动作 + 台词，三样一起来才协调。
+ * 动作用"角色"指定，缺哪个就退到候选里的下一个，缺光了就只做表情。 */
+const REACTIONS = {
+  praise:     { recipe: 'bigSmile',   level: 0.9,  hold: 4.0, role: 'praise' },
+  disappoint: { recipe: 'frown',      level: 0.85, hold: 5.0, role: 'disappoint' },
+  lonely:     { recipe: 'sad',        level: 0.7,  hold: 4.5, role: 'lonely' },
+  welcome:    { recipe: 'bigSmile',   level: 0.85, hold: 3.5, role: 'welcome' },
+  sleepy:     { recipe: 'sleepy',     level: 0.8,  hold: 3.5, role: null, yawn: true },
+  puzzled:    { recipe: 'surprised',  level: 0.75, hold: 2.5, role: 'nod' },
+  calm:       { recipe: 'gentleSmile', level: 0.5, hold: 3.0, role: null }
+};
+
+function react(name, line) {
+  const r = REACTIONS[name];
+  if (!r || !face) return false;
+  face.applyRecipeHold(r.recipe, r.level, r.hold);
+  if (r.yawn) face.yawn(1.6);
+  if (r.role) {
+    const clip = clipFor(r.role);
+    if (clip) playClip(clip);
+  }
+  if (line) say(line, Math.max(2600, r.hold * 1000));
+  return true;
+}
+
+/** 摄像头判定 → 角色反应 */
 function reactTo(label, prev) {
   if (!face) return;
-  // 从"不在"回到"在"：先高兴一下，这个比什么都自然
+  // 从"不在"回到"在"：先高兴一下，这个反应比什么都自然
   if ((prev === 'away' || prev === 'backturn') && label === 'focus') {
-    const b = STATE_FACE.back;
-    face.play(b.emotion, b.level, b.hold);
-    play('Head-Nod-Yes');
+    react('welcome', '你回来啦。');
     return;
   }
-  const f = STATE_FACE[label];
-  if (!f) return;
-  if (f.emotion) face.play(f.emotion, f.level, f.hold);
-  else face.clearEmotion();
-  if (f.yawn) face.yawn(1.6);
-  if (label === 'phone') play('Look-Around');
-  if (label === 'covered') play('Head-Nod-Yes');
+  switch (label) {
+    case 'focus':    react('calm'); break;
+    case 'phone':    react('disappoint'); break;
+    case 'drowsy':   react('sleepy'); break;
+    case 'covered':  react('puzzled'); break;
+    case 'away':     face.clearEmotion(); break;   // 没人看，不做表情
+    case 'backturn': react('calm'); break;
+  }
+}
+
+/* 长时间累积的反应：这两个是"看了很久才有的情绪"，
+ * 和上面那种"状态一变就反应"不是一回事。 */
+let focusRunSince = 0, awayRunSince = 0, lastLongReact = 0;
+const LONG_FOCUS_MIN = 15;      // 专注满这么久 → 夸你
+const LONG_AWAY_MIN = 5;        // 离开这么久 → 失落
+
+function updateLongReactions(label) {
+  const now = Date.now();
+  if (now - lastLongReact < 4 * 60000) return;    // 别太频繁
+
+  if (label === 'focus') {
+    awayRunSince = 0;
+    if (!focusRunSince) focusRunSince = now;
+    else if (now - focusRunSince > LONG_FOCUS_MIN * 60000) {
+      focusRunSince = now; lastLongReact = now;
+      react('praise', '你已经坐了很久了，厉害。');
+    }
+  } else if (label === 'away') {
+    focusRunSince = 0;
+    if (!awayRunSince) awayRunSince = now;
+    else if (now - awayRunSince > LONG_AWAY_MIN * 60000) {
+      awayRunSince = now; lastLongReact = now;
+      react('lonely');
+    }
+  } else {
+    focusRunSince = 0;
+  }
 }
 
 function setPip(on) {
@@ -826,6 +905,17 @@ $('btnStart').addEventListener('click', startSession);
 $('btnStop').addEventListener('click', stopSession);
 $('btnReload').addEventListener('click', () => loadModel());
 $('btnScene').addEventListener('click', () => applyScene(sceneIdx + 1));
+// 表情调试条：调表情时最好把身体冻住，不然动作会盖过表情
+$('btnFreeze').addEventListener('click', function () {
+  const v = window.TZRoom.freeze();
+  this.classList.toggle('on', v);
+  this.textContent = v ? '恢复动作' : '冻结动作';
+});
+document.querySelectorAll('[data-react]').forEach(b => {
+  b.addEventListener('click', () => react(b.getAttribute('data-react')));
+});
+$('btnTalk').addEventListener('click', () => face && face.talk(2.5));
+
 $('btnCam').addEventListener('click', toggleCam);
 $('btnCamReload').addEventListener('click', reloadCam);
 $('btnCalib').addEventListener('click', openCalib);
@@ -881,6 +971,23 @@ window.TZRoom = {
   talk: (sec) => face && face.talk(sec ?? 2),
   yawn: () => face && face.yawn(),
   react: reactTo,
+  reactAs: react,
+  reactions: () => Object.keys(REACTIONS),
+  clipFor,
+  freeze: (v) => {
+    frozen = v === undefined ? !frozen : !!v;
+    if (mixer && baseAction) {
+      if (frozen) {
+        if (oneShot) { oneShot.stop(); oneShot = null; }
+        baseAction.reset().play();
+        mixer.update(0.001);      // 回到第一帧再定住，姿势干净
+        baseAction.paused = true;
+      } else {
+        baseAction.paused = false;
+      }
+    }
+    return frozen;
+  },
   morph: (n, v) => face && face.setMorph(n, v, 8),
   recipe: (n, lv) => face && face.applyRecipe(n, lv ?? 1),
   pip: setPip,

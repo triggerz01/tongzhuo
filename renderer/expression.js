@@ -25,8 +25,13 @@ const VISEMES = ['aa', 'ih', 'ou', 'ee', 'oh'];
  * 不会和 VRM 的表情管理器打架。
  */
 const RECIPES = {
-  // 淡淡的满意：只动眉和嘴，眼睛保持睁开——这是预设做不到的
+  // 待机时的默认表情：只动嘴角和眉毛一点点，眼睛完全不参与。
+  // 「微笑但不要眯眯眼」—— 眯眼笑看久了会腻，也不适合长时间挂着。
+  gentleSmile: { Fcl_BRW_Joy: 0.25, Fcl_MTH_Joy: 0.35 },
+  // 淡淡的满意：眼睛只给一点点
   happy:     { Fcl_BRW_Joy: 0.45, Fcl_MTH_Joy: 0.55, Fcl_EYE_Joy: 0.15 },
+  // 皱眉：眉头压下来 + 嘴角绷住，是"不高兴"不是"要吵架"
+  frown:     { Fcl_BRW_Angry: 0.75, Fcl_MTH_Angry: 0.3, Fcl_MTH_Down: 0.25, Fcl_EYE_Angry: 0.25 },
   // 真的笑起来才闭眼
   bigSmile:  { Fcl_BRW_Joy: 0.7,  Fcl_MTH_Joy: 0.9,  Fcl_EYE_Joy: 0.75 },
   // 失望，不是生气：眉毛垮下来，嘴角下沉，眼睛还看着你
@@ -133,6 +138,21 @@ export class Expressions {
     return true;
   }
 
+  /** 播一个配方并保持一段时间，到期自动收回 */
+  applyRecipeHold(recipe, level = 0.8, hold = 3) {
+    if (this.useRecipes && RECIPES[recipe]) {
+      for (const e of EMOTIONS) this.set(e, 0, 6);
+      this.applyRecipe(recipe, level);
+      this.emotion = recipe;
+      this.emotionUntil = performance.now() / 1000 + hold;
+      return true;
+    }
+    // 没有分区形变的模型：退回最接近的预设
+    const fallback = { gentleSmile: 'happy', bigSmile: 'happy', frown: 'angry',
+                       sleepy: 'sad' }[recipe] || recipe;
+    return this.play(fallback, level, hold);
+  }
+
   /** 情绪立刻收回 */
   clearEmotion(speed = 2.5) {
     for (const e of EMOTIONS) this.set(e, 0, speed);
@@ -221,8 +241,9 @@ export class Expressions {
       this.microNext -= dt;
       if (this.microNext <= 0) {
         this.microNext = 8 + Math.random() * 14;
-        const pick = Math.random() < 0.65 ? 'relaxed' : 'happy';
-        this.play(pick, 0.16 + Math.random() * 0.14, 2 + Math.random() * 2);
+        // 待机时挂一个很淡的微笑，偶尔轻轻起伏，而不是在几种情绪间乱跳
+        this.applyRecipeHold('gentleSmile', 0.35 + Math.random() * 0.25,
+                             3 + Math.random() * 3);
       }
     }
 
