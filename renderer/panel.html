@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>同桌 · 控制台</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="panel">
+
+<div class="titlebar">
+  <b>同桌 · 控制台</b>
+  <span id="connDot" class="dot off" title="感知层连接状态"></span>
+  <span class="sp">
+    <button id="btnClose">关闭</button>
+  </span>
+</div>
+
+<div class="pbody">
+
+  <div class="sec">
+    <h3>会话 / Session</h3>
+    <div class="in">
+      <div class="row"><label>陪伴时长</label><input type="number" id="fPlanned" value="90" min="5" max="480"><output>分</output></div>
+      <div class="row"><label>休息点</label><input type="number" id="fBreakAt" value="45" min="0" max="480"><output>分</output></div>
+      <div class="row"><label>休息时长</label><input type="number" id="fBreakLen" value="8" min="1" max="60"><output>分</output></div>
+      <div class="chips" style="margin-top:10px">
+        <button id="btnCalib">① 基线标定</button>
+        <button id="btnStart" class="primary">② 开始陪伴</button>
+        <button id="btnBreak">休息</button>
+        <button id="btnEnd">结束</button>
+        <button id="btnReset">重置</button>
+      </div>
+      <div class="stat" style="margin-top:10px">
+        <span>状态 <b id="stState">未开始</b></span>
+        <span>专注 <b id="stFocus">0</b>′</span>
+        <span>离席 <b id="stAway">0</b></span>
+        <span>走神 <b id="stDist">0</b></span>
+      </div>
+      <p class="hint">标定要求你保持平时看书的姿势 15 秒。没有标定，所有阈值都是错的（PRD §5 补漏 1）。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3>人格 / Persona</h3>
+    <div class="in">
+      <div class="chips">
+        <button data-persona="peer" class="on">并肩战友</button>
+        <button data-persona="gentle">温柔同学</button>
+        <button data-persona="strict">教导主任</button>
+      </div>
+      <p class="hint">前两种最高只到 L2（一句短话）；教导主任允许 L3。严厉必须是你自己选的——这是承诺装置，不是我们强加的。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3>模板与捏脸 / Appearance</h3>
+    <div class="in">
+      <div class="chips" style="margin-bottom:10px">
+        <button data-tpl="suit" class="on">西装</button>
+        <button data-tpl="teacher">教师制服</button>
+        <button data-tpl="school">校服</button>
+        <button id="btnFace" class="on">有脸</button>
+      </div>
+      <div class="row"><label>眼睛大小</label><input type="range" id="pEyeSize" min="4" max="15" step=".5" value="9.5"><output id="oEyeSize"></output></div>
+      <div class="row"><label>眼距</label><input type="range" id="pEyeDist" min="16" max="34" step=".5" value="24"><output id="oEyeDist"></output></div>
+      <div class="row"><label>眼睛位置</label><input type="range" id="pEyeY" min="152" max="180" step="1" value="166"><output id="oEyeY"></output></div>
+      <div class="row"><label>眉毛角度</label><input type="range" id="pBrow" min="-10" max="10" step=".5" value="2"><output id="oBrow"></output></div>
+      <div class="row"><label>眉毛粗细</label><input type="range" id="pBrowW" min="2" max="9" step=".5" value="4.5"><output id="oBrowW"></output></div>
+      <div class="row"><label>脸型宽窄</label><input type="range" id="pFaceW" min="48" max="66" step="1" value="58"><output id="oFaceW"></output></div>
+      <div class="row"><label>腮红</label><input type="range" id="pBlush" min="0" max="60" step="1" value="28"><output id="oBlush"></output></div>
+      <div class="row"><label>肤色</label><input type="color" id="pSkin" value="#F1C7A6"><output></output></div>
+      <div class="row"><label>发色</label><input type="color" id="pHair" value="#33292A"><output></output></div>
+      <div class="row"><label>点缀色</label><input type="color" id="pAcc" value="#9E1B25"><output></output></div>
+      <div class="chips" style="margin-top:10px">
+        <button data-hair="short" class="on">短发</button>
+        <button data-hair="bun">盘发</button>
+        <button data-hair="twin">双马尾</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3>待机生命 / Idle</h3>
+    <div class="in">
+      <div class="chips" style="margin-bottom:8px">
+        <button id="btnFast">切到演示节奏</button>
+      </div>
+      <div class="chips" id="actBtns"></div>
+      <p class="hint">真实节奏 40–110 秒一次；演示节奏 5–13 秒。间隔永远是随机的——能被预测就等于失败。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3>无摄像头演示通道 / Simulate</h3>
+    <div class="in">
+      <div class="chips">
+        <button data-sim="phone">模拟：看手机</button>
+        <button data-sim="away">模拟：离席</button>
+        <button data-sim="drowsy">模拟：犯困</button>
+        <button data-sim="covered">模拟：遮挡</button>
+      </div>
+      <div class="chips" style="margin-top:8px">
+        <button data-appeal="phone">我在看书（静默手机 30′）</button>
+      </div>
+      <p class="hint">连点几次"模拟：看手机"，能看到闸门把后面的干预挡掉——这正是要演给评委看的东西。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3>日志 / Log</h3>
+    <div class="log" id="log"><div><span class="t">—</span><span>等待事件…</span></div></div>
+  </div>
+
+</div>
+
+<script src="panel.js"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>同桌</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="pet">
+  <div id="stage">
+    <div id="bubble" class="bubble"></div>
+
+    <svg id="ch" viewBox="0 0 300 380" aria-label="同桌">
+      <ellipse cx="150" cy="356" rx="76" ry="9" fill="#000" opacity=".10"/>
+      <g id="breath">
+      <g id="figure">
+
+        <g id="hairBack">
+          <ellipse id="hb0" cx="150" cy="156" rx="67" ry="72"/>
+          <ellipse id="hbL" cx="76" cy="188" rx="17" ry="36" opacity="0"/>
+          <ellipse id="hbR" cx="224" cy="188" rx="17" ry="36" opacity="0"/>
+          <circle  id="hbBun" cx="150" cy="86" r="19" opacity="0"/>
+        </g>
+
+        <g id="armL"><rect x="84" y="242" width="27" height="88" rx="13.5"/><circle cx="97.5" cy="330" r="12"/></g>
+        <g id="armR"><rect x="189" y="242" width="27" height="88" rx="13.5"/><circle cx="202.5" cy="330" r="12"/></g>
+
+        <rect id="neck" x="138" y="198" width="24" height="30" rx="9"/>
+        <path id="torso" d="M96,352 L100,266 Q105,234 133,226 L167,226 Q195,234 200,266 L204,352 Z"/>
+
+        <g id="fitSuit">
+          <path d="M150,226 L133,226 Q105,234 100,266 L97,352 L150,352 Z" fill="#26303A"/>
+          <path d="M150,226 L167,226 Q195,234 200,266 L203,352 L150,352 Z" fill="#26303A"/>
+          <path d="M150,228 L128,240 L150,300 L172,240 Z" fill="#F4F5F3"/>
+          <path id="tie" d="M150,244 L142,254 L150,300 L158,254 Z"/>
+          <path d="M150,228 L128,240 L136,262 Z" fill="#1B242C"/>
+          <path d="M150,228 L172,240 L164,262 Z" fill="#1B242C"/>
+        </g>
+
+        <g id="fitTeacher" style="display:none">
+          <path d="M133,226 Q105,234 100,266 L97,352 L126,352 L124,244 Z" fill="#6F7F76"/>
+          <path d="M167,226 Q195,234 200,266 L203,352 L174,352 L176,244 Z" fill="#6F7F76"/>
+          <path d="M150,230 L136,240 L150,268 L164,240 Z" fill="#DDE2E4"/>
+          <rect id="tCollar" x="144" y="256" width="12" height="46" rx="5"/>
+        </g>
+
+        <g id="fitSchool" style="display:none">
+          <path d="M133,226 L150,262 L167,226 Q192,232 198,258 L150,240 L102,258 Q108,232 133,226 Z" fill="#33415A"/>
+          <path d="M150,262 L134,232 L166,232 Z" fill="#33415A"/>
+          <path id="ribbon" d="M150,258 L134,270 L150,278 L166,270 Z"/>
+        </g>
+
+        <g id="head">
+          <ellipse id="earL" cx="93" cy="168" rx="9" ry="13"/>
+          <ellipse id="earR" cx="207" cy="168" rx="9" ry="13"/>
+          <ellipse id="faceBase" cx="150" cy="162" rx="58" ry="64"/>
+          <g id="face">
+            <ellipse id="blushL" cx="107" cy="188" rx="12" ry="7" opacity=".28" fill="#E0806F"/>
+            <ellipse id="blushR" cx="193" cy="188" rx="12" ry="7" opacity=".28" fill="#E0806F"/>
+            <line id="browL" stroke-linecap="round"/>
+            <line id="browR" stroke-linecap="round"/>
+            <ellipse id="eyeL"/><ellipse id="eyeR"/>
+            <circle id="hlL" r="2.6" fill="#fff"/><circle id="hlR" r="2.6" fill="#fff"/>
+            <path id="mouth" fill="none" stroke-linecap="round"/>
+          </g>
+          <path id="hairFront" d="M90,152 Q94,100 150,98 Q206,100 210,152 Q194,126 150,126 Q106,126 90,152 Z"/>
+        </g>
+
+      </g>
+      </g>
+    </svg>
+
+    <div id="hud" class="hud">
+      <span id="camDot" class="dot off" title="摄像头状态"></span>
+      <span id="hudText">未开始</span>
+    </div>
+  </div>
+
+  <script src="character.js"></script>
+  <script src="persona.js"></script>
+  <script src="idle.js"></script>
+  <script src="gate.js"></script>
+  <script src="session.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

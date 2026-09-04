@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同桌 · 产品需求文档</title>
+<style>
+:root{
+  --ground:#F3F5F6;--surface:#FFFFFF;--surface-2:#E9ECEF;
+  --ink:#14181C;--ink-2:#454E56;--muted:#737D85;
+  --line:#D2D8DC;--line-soft:#E3E7EA;
+  --accent:#9E1B25;--p0:#9E1B25;--p1:#2C5C6B;--p2:#8A5B12;--ok:#1B6A55;
+  --serif:Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
+  --sans:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Cascadia Mono",Consolas,"SF Mono",Menlo,ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0F1216;--surface:#161A1F;--surface-2:#1C2127;
+  --ink:#E6EAEE;--ink-2:#B0B9C0;--muted:#87919A;
+  --line:#293037;--line-soft:#212831;
+  --accent:#E4737C;--p0:#E4737C;--p1:#66B2C0;--p2:#D6A445;--ok:#5FBFA0;
+}}
+:root[data-theme="dark"]{
+  --ground:#0F1216;--surface:#161A1F;--surface-2:#1C2127;
+  --ink:#E6EAEE;--ink-2:#B0B9C0;--muted:#87919A;
+  --line:#293037;--line-soft:#212831;
+  --accent:#E4737C;--p0:#E4737C;--p1:#66B2C0;--p2:#D6A445;--ok:#5FBFA0;
+}
+*{box-sizing:border-box;margin:0}
+html{color-scheme:light dark;scroll-behavior:smooth}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.8}
+.sheet{max-width:1000px;margin:0 auto;padding:0 28px 90px}
+@media (max-width:620px){.sheet{padding:0 16px 60px}}
+.measure{max-width:40em}
+
+header{padding:56px 0 30px;border-bottom:2px solid var(--ink)}
+.slug{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+h1{font-family:var(--serif);font-size:clamp(30px,5vw,46px);line-height:1.15;margin:14px 0 0}
+h1 small{display:block;font-family:var(--sans);font-size:15px;font-weight:400;color:var(--muted);margin-top:12px;line-height:1.7;max-width:46em}
+.pitch{font-family:var(--serif);font-size:19px;line-height:1.75;margin-top:22px;max-width:32em;border-left:3px solid var(--accent);padding-left:18px}
+.meta{display:flex;flex-wrap:wrap;margin-top:24px;border:1px solid var(--line);background:var(--surface)}
+.meta div{padding:11px 16px;border-right:1px solid var(--line);flex:1 1 150px}
+.meta div:last-child{border-right:0}
+.meta dt{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.meta dd{font-size:14.5px;font-weight:500;margin-top:2px}
+
+nav.toc{position:sticky;top:0;z-index:9;background:var(--ground);border-bottom:1px solid var(--line);margin-bottom:6px}
+nav.toc div{display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
+nav.toc div::-webkit-scrollbar{display:none}
+nav.toc a{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-decoration:none;padding:11px 13px;white-space:nowrap;border-bottom:2px solid transparent}
+nav.toc a:first-child{padding-left:0}
+nav.toc a:hover{color:var(--ink);border-bottom-color:var(--accent)}
+
+section{padding:44px 0 0;scroll-margin-top:52px}
+h2{font-family:var(--serif);font-size:23px;line-height:1.4;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:16px}
+h2 .no{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;margin-right:12px;vertical-align:2px}
+h3{font-family:var(--serif);font-size:17.5px;margin:26px 0 0}
+h4{font-size:15px;margin:18px 0 0;font-weight:600}
+p{margin-top:12px;color:var(--ink-2)}
+b,strong{color:var(--ink);font-weight:500}
+code{font-family:var(--mono);font-size:.87em;background:var(--surface-2);padding:1px 5px;border-radius:2px}
+ul,ol{margin-top:12px;padding-left:22px;color:var(--ink-2)}
+li{margin-bottom:5px;line-height:1.75}
+
+.wrapx{overflow-x:auto;margin-top:16px}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);min-width:560px}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top;font-size:14px;line-height:1.7}
+tr:last-child td{border-bottom:0}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--surface-2)}
+td:first-child{color:var(--ink);font-weight:500}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pri{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:1px 6px;border:1px solid;white-space:nowrap}
+.P0{color:var(--p0);border-color:var(--p0)}
+.P1{color:var(--p1);border-color:var(--p1)}
+.P2{color:var(--p2);border-color:var(--p2)}
+.easy{color:var(--ok);font-family:var(--mono);font-size:11px}
+.mid{color:var(--p2);font-family:var(--mono);font-size:11px}
+.hard{color:var(--accent);font-family:var(--mono);font-size:11px}
+
+.card{background:var(--surface);border:1px solid var(--line);padding:16px 20px;margin-top:16px}
+.card.key{border-left:3px solid var(--accent)}
+.card h4{margin-top:0}
+.gap{background:var(--surface);border:1px solid var(--p2);padding:14px 18px;margin-top:14px}
+.gap h4{margin:0 0 4px;color:var(--p2);font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.gap p{margin-top:4px}
+.warn{border:1px solid var(--accent);background:var(--surface);padding:16px 20px;margin-top:18px}
+.warn h4{margin:0 0 6px;color:var(--accent);font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+.note{background:var(--surface-2);border:1px dashed var(--line);padding:14px 18px;margin-top:16px;font-size:14px;color:var(--ink-2)}
+
+.flow{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:16px}
+.flow > div{background:var(--surface);padding:13px 18px;display:grid;grid-template-columns:82px 1fr;gap:16px;align-items:baseline}
+.flow .st{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.08em}
+.flow .tx{font-size:14.5px;color:var(--ink-2);line-height:1.75}
+.flow .tx b{color:var(--ink)}
+
+.ladder{display:grid;gap:10px;margin-top:16px}
+.ladder > div{display:grid;grid-template-columns:64px 1fr;gap:14px;background:var(--surface);border:1px solid var(--line);padding:12px 16px}
+.ladder .lv{font-family:var(--mono);font-size:11px;color:var(--muted);border-right:1px solid var(--line-soft);padding-right:12px}
+.ladder .lv b{display:block;font-size:15px;color:var(--accent)}
+
+footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media print{
+  :root{--ground:#fff;--surface:#fff;--surface-2:#f3f3f3;--ink:#000;--ink-2:#333;--muted:#666;--line:#bbb;--line-soft:#ddd}
+  nav.toc{display:none}.sheet{max-width:none;padding:0}
+  table,.card,.gap,.warn,.ladder>div{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<header>
+  <div class="slug"><span>Build with Care</span><span>赛道二 · 伴学计划</span><span>PRD v1</span><span>2026-09-04</span></div>
+  <h1>同桌
+    <small>产品需求文档 · 代号「同桌」（名称待定，备选：在场 / 自习室）。本文合并了队内《关于黑客松赛道二的初步设想》与后续讨论结论，并标出了原设想中尚未覆盖的部分。</small>
+  </h1>
+  <p class="pitch">它不会来查你。它只是一直在。</p>
+  <dl class="meta">
+    <div><dt>形态</dt><dd>桌面常驻软件</dd></div>
+    <div><dt>窗口</dt><dd>9/4 17:30 → 9/6 12:30</dd></div>
+    <div><dt>运行</dt><dd>本地推理，不部署</dd></div>
+    <div><dt>MVP 判据</dt><dd>三分钟测试通过</dd></div>
+  </dl>
+</header>
+
+<nav class="toc"><div>
+  <a href="#s1">定位</a><a href="#s2">设计原则</a><a href="#s3">用户旅程</a><a href="#s4">功能需求</a>
+  <a href="#s5">感知层</a><a href="#s6">反馈层</a><a href="#s7">角色系统</a><a href="#s8">隐私</a>
+  <a href="#s9">非功能</a><a href="#s10">数据模型</a><a href="#s11">验收</a><a href="#s12">范围外</a>
+  <a href="#s13">风险</a><a href="#s14">排期</a><a href="#s15">待拍板</a>
+</div></nav>
+
+<section id="s1">
+  <h2><span class="no">01</span>产品定位</h2>
+  <p class="lead measure"><b>一句话：</b>一个常驻桌面的虚拟同桌。你在，它也在；你走神，它只是停下笔看你一眼；你熬太久，它先起身说"我先歇会儿"。</p>
+  <h3>目标用户</h3>
+  <ul>
+    <li><b>主要</b>：期末周／赶 due 期间，明知该学但启动不了的大学生</li>
+    <li><b>次要</b>：需要长时间独处工作、但在宿舍效率显著低于自习室的人</li>
+  </ul>
+  <h3>要解决的那件事</h3>
+  <p class="measure">赛题原文写的是"<b>心里越着急，手越不想碰书</b>"——拖延的机制是情绪回避，不是意志力不足。同时它给出了解法方向：共场陪伴带来的是一种<b>温和的</b>外部监督感——在"场"里有人"在"，就会被触发"不能摸鱼"的本能。</p>
+  <div class="card key">
+    <h4>关键判断：共场 ≠ 监督</h4>
+    <p class="measure">图书馆里没有人盯着你，也没有人会骂你——但他们在，你就不好意思摸鱼。起作用的是<b>共在</b>，不是<b>审判</b>。所以摄像头的正确用途，是让角色<b>对你的状态做出反应</b>（你在它也埋头，你走它抬头看一眼然后继续做自己的事），而不是判你的罪。</p>
+  </div>
+  <h3>与已有产品的区分</h3>
+  <div class="wrapx"><table>
+    <thead><tr><th></th><th>凛冬督学局（redwatch.top）</th><th>同桌</th></tr></thead>
+    <tbody>
+      <tr><td>角色出场方式</td><td>随机巡查时出现，查完消失</td><td><b>一直在</b>，不出现也不消失</td></tr>
+      <tr><td>心理机制</td><td>被抽查的紧张</td><td>有人在旁边的踏实</td></tr>
+      <tr><td>违规反馈</td><td>判定 + 扣罚</td><td>行为示范（停下笔看你一眼）</td></tr>
+      <tr><td>角色资产</td><td>静态 2D 立绘</td><td>参数化 SVG，可捏脸／可上传照片</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">竞品的存在是路演素材，不是威胁：它证明这个需求真实到有人做成了产品，而我们做的是它没做的那一半——<b>它做监督，我们做共场</b>。</p>
+</section>
+
+<section id="s2">
+  <h2><span class="no">02</span>五条设计原则</h2>
+  <ol>
+    <li><b>不打扰优先于有用。</b>任何一次干预，若无法通过"它此刻出声比沉默更好吗"，就不出声。</li>
+    <li><b>行为示范优先于语言命令。</b>说"我先歇会儿"，不说"你该休息了"。</li>
+    <li><b>严厉必须是用户主动选的。</b>被强加的惩罚加重回避；自选的约束是承诺装置，有效。</li>
+    <li><b>被看见 ≠ 被审判。</b>记录只回放给本人，不当场羞辱。</li>
+    <li><b>技术为感受服务。</b>检测精度不是卖点，它只是让反应显得自然的手段。</li>
+  </ol>
+</section>
+
+<section id="s3">
+  <h2><span class="no">03</span>用户旅程与会话生命周期</h2>
+  <p class="measure">原设想里提到了"陪伴时长"和"中途休息"，但没有定义完整的会话结构。<b>会话是这个产品的骨架</b>——没有它，感知层不知道什么时候该工作，角色不知道自己处于什么状态。</p>
+  <div class="flow">
+    <div><span class="st">首次启动</span><span class="tx"><b>出厂状态：它没有脸。</b>选模板（西装／教师制服／校服）→ 捏脸 或 上传照片 → 选人格（严格教导主任／温柔同学／并肩战友）→ 选场景（自习室／教室／咖啡厅／卧室）</span></div>
+    <div><span class="st">标定</span><span class="tx"><b>15 秒基线标定（新增，见 §5 缺口）。</b>"请保持你平时看书的姿势"——记录你的基准头部角度与画面位置。不做这一步，后面所有阈值都是错的。</span></div>
+    <div><span class="st">开始一场</span><span class="tx">设定陪伴时长（如 90 分钟）、预设休息点（如第 45 分钟休息 8 分钟）、选择强度（共场模式／督学模式）。<b>休息必须在开始前定好</b>，中途不能随意加。</span></div>
+    <div><span class="st">陪伴中</span><span class="tx">感知层按 2 FPS 采样；角色跑待机生命；触发条件满足时按干预阶梯反馈。</span></div>
+    <div><span class="st">休息中</span><span class="tx"><b>摄像头暂停，角色也去休息</b>（趴下／喝水／伸懒腰）。休息结束前 30 秒它自己先坐直——不叫你，用行为提示。</span></div>
+    <div><span class="st">结束</span><span class="tx">今日回放：专注时长曲线、离席次数与时长、走神时刻（含本地存档照片，若已开启）、好感度变化。<b>只呈现，不评判。</b></span></div>
+  </div>
+</section>
+
+<section id="s4">
+  <h2><span class="no">04</span>功能需求总表</h2>
+  <p class="measure">P0 = MVP 必做，砍到只剩这些也要能演示；P1 = 应做；P2 = 有时间才做。</p>
+  <div class="wrapx"><table>
+    <thead><tr><th>编号</th><th>功能</th><th>说明</th><th>优先级</th></tr></thead>
+    <tbody>
+      <tr><td>F1</td><td>桌面常驻角色</td><td>透明无边框置顶窗，可穿透点击，不抢焦点</td><td><span class="pri P0">P0</span></td></tr>
+      <tr><td>F2</td><td>待机生命</td><td>呼吸／眨眼／10+ 待机行为／非周期调度器（原型已完成）</td><td><span class="pri P0">P0</span></td></tr>
+      <tr><td>F3</td><td>模板 + 捏脸</td><td>3 套服装模板 + 参数化五官（原型已完成）</td><td><span class="pri P0">P0</span></td></tr>
+      <tr><td>F4</td><td>感知：离席 / 遮挡</td><td>人脸与人体存在性判定</td><td><span class="pri P0">P0</span></td></tr>
+      <tr><td>F5</td><td>感知：手机</td><td>YOLO 预训练 <code>cell phone</code> 类</td><td><span class="pri P0">P0</span></td></tr>
+      <tr><td>F6</td><td>感知：困倦 / 低头</td><td>头部姿态 + 闭眼时长 + 静止时长</td><td><span class="pri P1">P1</span></td></tr>
+      <tr><td>F7</td><td>干预阶梯</td><td>三级递进 + 频率上限（见 §6）</td><td><span class="pri P0">P0</span></td></tr>
+      <tr><td>F8</td><td>会话管理</td><td>时长 / 休息点 / 开始结束仪式</td><td><span class="pri P0">P0</span></td></tr>
+      <tr><td>F9</td><td>基线标定</td><td>15 秒姿势标定，个体化阈值</td><td><span class="pri P0">P0</span></td></tr>
+      <tr><td>F10</td><td>今日回放</td><td>时长曲线 + 事件列表 + 存档照片</td><td><span class="pri P1">P1</span></td></tr>
+      <tr><td>F11</td><td>人格皮肤</td><td>三种语言风格，同一套触发逻辑</td><td><span class="pri P1">P1</span></td></tr>
+      <tr><td>F12</td><td>照片 → 捏脸参数</td><td>本地 landmark 提特征，自动填参数（丙方案）</td><td><span class="pri P1">P1</span></td></tr>
+      <tr><td>F13</td><td>误报申诉</td><td>一键"我在看书"，撤销本次判定并调阈值</td><td><span class="pri P1">P1</span></td></tr>
+      <tr><td>F14</td><td>无摄像头降级</td><td>键鼠活动 + 纯番茄钟，功能不残废</td><td><span class="pri P1">P1</span></td></tr>
+      <tr><td>F15</td><td>场景与白噪音</td><td>4 个场景背景 + 程序生成噪音（见 §12 版权注）</td><td><span class="pri P2">P2</span></td></tr>
+      <tr><td>F16</td><td>照片 → 表情集</td><td>批量生成 10–12 张表情头（甲方案）</td><td><span class="pri P2">P2</span></td></tr>
+      <tr><td>F17</td><td>好感度 / 关系</td><td>见 §6 修订版</td><td><span class="pri P2">P2</span></td></tr>
+      <tr><td>F18</td><td>画布手绘脸</td><td>兜底方案，1–2 小时</td><td><span class="pri P2">P2</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="s5">
+  <h2><span class="no">05</span>感知层：行为清单与检测方案</h2>
+  <p class="measure">行为分类沿用队内文档的五大类，此处为每一条补上<b>检测方法、可行性判断与建议阈值</b>。所有推理均在本地完成。</p>
+  <div class="wrapx"><table>
+    <thead><tr><th>类别 / 行为</th><th>检测方法</th><th>建议阈值</th><th>难度</th></tr></thead>
+    <tbody>
+      <tr><td>一·无故离开画面</td><td>人脸 + 人体均不存在</td><td>连续 &gt; 25 s</td><td class="easy">易</td></tr>
+      <tr><td>一·侧身背对镜头</td><td>有人体、无人脸，持续</td><td>连续 &gt; 40 s</td><td class="easy">易</td></tr>
+      <tr><td>二·低头打瞌睡</td><td>pitch 下俯超基线 + 闭眼 + 头部位移方差极低</td><td>三条件同时 &gt; 20 s</td><td class="mid">中</td></tr>
+      <tr><td>二·歪头昏睡</td><td>roll 角 &gt; 25° + 闭眼</td><td>连续 &gt; 15 s</td><td class="mid">中</td></tr>
+      <tr><td>二·反复点头打盹</td><td>pitch 时序的周期性震荡（需 30 s 滑窗）</td><td>2 次以上震荡</td><td class="hard">难</td></tr>
+      <tr><td>二·趴在桌上睡</td><td>人脸消失 + 人体在 + 关键点整体下移</td><td>连续 &gt; 20 s</td><td class="mid">中</td></tr>
+      <tr><td>三·低头看手机</td><td><b>YOLO 检出 cell phone</b> + pitch 下俯</td><td>连续 &gt; 8 s</td><td class="easy">易</td></tr>
+      <tr><td>三·举手机刷视频</td><td>phone 框与人脸框距离近</td><td>连续 &gt; 5 s</td><td class="easy">易</td></tr>
+      <tr><td>三·双手操作手机</td><td>phone 框 + 双手关键点在框附近</td><td>连续 &gt; 8 s</td><td class="mid">中</td></tr>
+      <tr><td>三·桌下偷看手机</td><td>手机不可见，仅 pitch 大幅下俯 + 手不在画面</td><td>连续 &gt; 15 s</td><td class="hard">难</td></tr>
+      <tr><td>四·遮挡镜头</td><td>画面亮度骤降或像素方差趋零 + 无任何检出</td><td>连续 &gt; 5 s</td><td class="easy">易</td></tr>
+      <tr><td>五·有效学习（对照）</td><td>以上均不成立 + 人脸在 + pitch 在基线 ±15° 内</td><td>持续累计</td><td class="easy">易</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="gap">
+    <h4>补漏 1 · 基线标定（缺失，且致命）</h4>
+    <p class="measure">不同的人、不同摄像头高度、不同桌面高度，"正常看书"的 pitch 角差异可达 30°。<b>用固定阈值必然误报。</b>必须在会话开始前做 15 秒标定："请保持你平时看书的姿势"，记录基线 pitch/roll 与人脸框位置，后续所有判定基于<b>相对偏移</b>而非绝对角度。</p>
+  </div>
+  <div class="gap">
+    <h4>补漏 2 · 桌下偷看手机不做独立判定</h4>
+    <p class="measure">这条在队内文档里单列，但它无法与"低头认真看书"区分——两者的画面几乎一样。<b>建议合并进"低头超时"统一处理</b>，且反馈用最轻的一级（角色抬头看一眼，不出声）。硬做会制造大量误报。</p>
+  </div>
+  <div class="gap">
+    <h4>补漏 3 · 采样率 2 FPS，不是 30</h4>
+    <p class="measure">判定"打瞌睡 20 秒"不需要 30 FPS。常驻 30 FPS 推理会让风扇狂转、笔记本一小时掉 20% 电，用户当天就会卸载。<b>2 FPS（每 500 ms 一帧）足够，CPU 占用可控。</b>检出手机后可临时升到 5 FPS 确认，确认完降回。</p>
+  </div>
+  <div class="gap">
+    <h4>补漏 4 · 多人入镜（宿舍场景）</h4>
+    <p class="measure">只跟踪<b>画面中面积最大且最靠近中心的那张脸</b>，其余忽略。舍友路过不应触发任何判定。</p>
+  </div>
+</section>
+
+<section id="s6">
+  <h2><span class="no">06</span>反馈层：干预阶梯与人格</h2>
+  <p class="measure">队内文档写了"提醒／警告／呵斥"和"夸赞／微笑"，但没有定义<b>强度递进和频率上限</b>。这是"不打扰"能不能落地的唯一保障。</p>
+  <h3>三级干预阶梯</h3>
+  <div class="ladder">
+    <div><span class="lv"><b>L1</b>静默</span><span>角色<b>停下笔，看你一眼，又低头</b>。不出声、不弹窗、不变色。首次触发一律走 L1。</span></div>
+    <div><span class="lv"><b>L2</b>轻声</span><span>一句短句，气泡形式，3 秒后自动消失。同一行为 10 分钟内第二次触发才用。</span></div>
+    <div><span class="lv"><b>L3</b>明确</span><span>角色转向你 + 一句完整的话。<b>仅在督学模式下可用</b>；共场模式永不升到 L3。</span></div>
+  </div>
+  <div class="card">
+    <h4>频率上限（硬约束）</h4>
+    <ul>
+      <li>任意干预：<b>10 分钟内最多 1 次</b></li>
+      <li>同一行为类型：<b>30 分钟内最多 2 次</b></li>
+      <li>连续两次干预之间必须至少有一次<b>正向反馈或纯待机行为</b></li>
+      <li>用户点击"我在看书"（F13）后，该行为类型静默 30 分钟</li>
+    </ul>
+  </div>
+  <h3>人格 = 语言风格皮肤</h3>
+  <p class="measure">沿用队内文档的三种人格设定，但<b>三者共用同一套触发逻辑与同一条阶梯</b>，差异只在文案与允许的最高级别。</p>
+  <div class="wrapx"><table>
+    <thead><tr><th>人格</th><th>L1</th><th>L2 示例</th><th>最高级别</th></tr></thead>
+    <tbody>
+      <tr><td>并肩战友（默认）</td><td>停笔看一眼</td><td>"我也有点走神了。"</td><td>L2</td></tr>
+      <tr><td>温柔同学</td><td>停笔看一眼</td><td>"要不要先喝口水？"</td><td>L2</td></tr>
+      <tr><td>教导主任（需主动开启）</td><td>停笔看一眼</td><td>"手机。"</td><td><b>L3</b></td></tr>
+    </tbody>
+  </table></div>
+  <div class="warn">
+    <h4>修订 · 好感度与"告白"</h4>
+    <p class="measure">队内文档提出好感度到一定程度会"告白"。我建议改掉，理由是产品逻辑而非道德：<b>把外在奖励挂到学习行为上，会侵蚀内在动机</b>（过度理由效应）——用户开始为了好感度而学，一旦奖励停止，行为回落得比原来更低。而且它会把作品的气味推向恋爱模拟，稀释"陪伴"的严肃性。</p>
+    <p class="measure"><b>建议改成"关系深化"而非"恋爱奖励"</b>：好感度升高时，它记得你更多的事、说话更随意、会主动提起你上次提过的考试。<b>奖励是"它更懂你"，不是"它喜欢你"</b>——这正好命中赛题原文的"让你感到被理解"。</p>
+  </div>
+  <div class="warn">
+    <h4>修订 · "拍照留存罪证"</h4>
+    <p class="measure">队内文档把这一条标为亮点，我同意它有戏剧性，但<b>当场羞辱会加重回避</b>（见 §1 的机制）。建议保留功能、改变时机与归属：<br>
+    ① <b>默认关闭</b>，需用户主动开启；② 拍下的照片<b>只进本地档案，不当场展示</b>；③ 在结束时的"今日回放"里作为你自己的记录出现；④ 一键清空。<br>
+    这样它从"罪证"变成"<b>被看见</b>"——正是原文切入角度 03 要的东西，而戏剧性一点没少。</p>
+  </div>
+</section>
+
+<section id="s7">
+  <h2><span class="no">07</span>角色系统：三条换脸路径</h2>
+  <p class="measure">角色本体是<b>参数化 SVG</b>（原型已验证）：0 张图片，分层，捏脸即改参数，眨眼＝改一个属性。三条个性化路径共用同一套骨架，头部是可替换的一层。</p>
+  <div class="wrapx"><table>
+    <thead><tr><th>路径</th><th>做法</th><th>像我程度</th><th>工时</th><th>风险</th><th>优先级</th></tr></thead>
+    <tbody>
+      <tr><td>丙 · 照片转参数</td><td>本地 landmark 量出眼距／眼型／脸宽 + 取肤色发色 → 自动填捏脸参数</td><td>★★☆</td><td class="n">2 h</td><td>几乎为零，不联网</td><td><span class="pri P1">P1</span></td></tr>
+      <tr><td>乙 · 单张风格化头</td><td>生成 1 张扁平插画风头像，五官仍用 SVG 覆盖驱动</td><td>★★★☆</td><td class="n">3–4 h</td><td>低（甲失败时的自动降级）</td><td><span class="pri P2">P2</span></td></tr>
+      <tr><td>甲 · 表情集</td><td>批量预生成 10–12 张表情头，本地缓存，运行时切图</td><td>★★★★★</td><td class="n">9 h</td><td>中，需联网</td><td><span class="pri P2">P2</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="card key">
+    <h4>甲方案的四条实现纪律</h4>
+    <ol>
+      <li><b>绝不在运行时调 API。</b>生成一张 3–15 秒，眨眼需要 110 毫秒。必须一次性预生成 + 本地缓存。</li>
+      <li><b>风格靠提示词锁死，不靠事后修图</b>：<code>flat vector illustration, 2–3 flat colors, clean outline, no shading, transparent background</code>。是让 AI 把这张脸"画成"我们的画风，不是把真人贴到矢量身体上。</li>
+      <li><b>生成后必须自动对齐</b>：用两眼中心做相似变换归一化。不做这一步，切换表情时角色会抖，生命感全毁。</li>
+      <li><b>每张给"重新生成"</b>，让用户从 2–3 个候选里挑。出废片是常态。</li>
+    </ol>
+    <p class="measure">表情清单直接对应待机行为库：常态／闭眼／半闭／大张嘴闭眼／眼向下／微惊／疲惫／侧脸／笑。<b>夸张是对的</b>——越写实越掉恐怖谷。</p>
+  </div>
+</section>
+
+<section id="s8">
+  <h2><span class="no">08</span>隐私与数据边界</h2>
+  <div class="card key">
+    <h4>默认承诺（写进 README 与路演）</h4>
+    <ul>
+      <li>所有视觉推理<b>在本地完成</b>，画面不出本机</li>
+      <li><b>默认不保存任何图像</b>；仅保存事件（时间戳 + 类型）</li>
+      <li>存档照片需<b>显式开启</b>，只进本地目录，可一键清空</li>
+      <li>角色窗口上有<b>常驻的摄像头状态指示</b>，随时可一键暂停</li>
+      <li>休息期间摄像头<b>真正关闭</b>，不是软暂停</li>
+    </ul>
+  </div>
+  <div class="warn">
+    <h4>唯一的例外：F16 表情集生成</h4>
+    <p class="measure">这一步会把照片发到第三方图像 API，与上面的承诺冲突。处理方式：<b>明确告知 + 用户主动触发 + 一次性 + 结果只存本地 + 不提供导出与分享</b>。并保留约束："仅限本人照片或已获对方同意"。<b>不提供导出，是把滥用面压到最小的关键一条</b>——产物出不了这台电脑。</p>
+    <p class="measure">路演时主动讲这一段。评委一定会问隐私，主动答比被动答强。</p>
+  </div>
+</section>
+
+<section id="s9">
+  <h2><span class="no">09</span>非功能需求</h2>
+  <div class="wrapx"><table>
+    <thead><tr><th>维度</th><th>要求</th></tr></thead>
+    <tbody>
+      <tr><td>性能</td><td>常驻状态 CPU 占用 &lt; 15%（2 FPS 采样）；角色渲染 60 FPS；内存 &lt; 400 MB</td></tr>
+      <tr><td>离线</td><td>除 F16 外全部功能<b>断网可用</b>（现场演示保障）</td></tr>
+      <tr><td>启动</td><td>冷启动到角色出现 &lt; 3 s</td></tr>
+      <tr><td>不打扰</td><td>窗口不抢焦点、可点击穿透、不遮挡任务栏、单击不弹窗</td></tr>
+      <tr><td>可中断</td><td>任何时刻一键暂停整场陪伴，摄像头立即关闭</td></tr>
+      <tr><td>降级</td><td>无摄像头／拒绝授权时，自动切键鼠活动检测 + 番茄钟，<b>角色与待机生命完全不受影响</b></td></tr>
+    </tbody>
+  </table></div>
+  <div class="gap">
+    <h4>补漏 5 · 无摄像头路径不是可选项</h4>
+    <p class="measure">相当一部分用户不会开摄像头（宿舍、外貌顾虑、笔记本没摄像头）。如果没有降级路径，这些人打开就流失，<b>路演现场也少了一条兜底</b>。降级版仍然保有产品最核心的部分——常驻、待机生命、共场感——只是少了行为识别。</p>
+  </div>
+</section>
+
+<section id="s10">
+  <h2><span class="no">10</span>数据模型</h2>
+  <p class="measure">一个本地 SQLite 文件，四张表。刻意做小。</p>
+  <div class="wrapx"><table>
+    <thead><tr><th>表</th><th>字段</th></tr></thead>
+    <tbody>
+      <tr><td>session</td><td>id, started_at, ended_at, planned_min, break_plan, mode(共场/督学), persona, scene, baseline_pitch, baseline_roll</td></tr>
+      <tr><td>event</td><td>id, session_id, ts, kind(离席/遮挡/手机/困倦/专注), confidence, duration_s, snapshot_path(可空), intervened_level</td></tr>
+      <tr><td>profile</td><td>face_params(json), outfit, hair, colors, persona, affinity, photo_asset_dir</td></tr>
+      <tr><td>daily</td><td>date, focus_min, away_count, away_min, distract_count, affinity_delta</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note"><code>event</code> 表只增不改，回放与统计全部从它重算——两天半里最贵的 bug 是状态不一致。</p>
+</section>
+
+<section id="s11">
+  <h2><span class="no">11</span>验收标准</h2>
+  <h3>三分钟测试（角色是否"活着"）</h3>
+  <ol>
+    <li>找一个未参与开发的人，开着它做三分钟自己的事</li>
+    <li>问："它刚才做了什么？"——能说出 <b>2 件以上</b>为通过</li>
+    <li>问："你觉得它下一步会干嘛？"——<b>能准确预测即为失败</b></li>
+    <li>否决项：三分钟内有任何一次觉得被打扰</li>
+  </ol>
+  <h3>感知层验收</h3>
+  <ul>
+    <li>离席／遮挡／举手机三项：10 次测试<b>误报 ≤ 1 次</b>、漏报 ≤ 2 次</li>
+    <li>正常看书 15 分钟：<b>零次误判为摸鱼</b>（这是最重要的一条，宁可漏报）</li>
+  </ul>
+  <h3>路演验收</h3>
+  <ul>
+    <li>断网状态下全流程可演示</li>
+    <li>摄像头演示有<b>录屏兜底</b>，任何一次识别失败不影响讲述节奏</li>
+  </ul>
+</section>
+
+<section id="s12">
+  <h2><span class="no">12</span>明确不做</h2>
+  <p class="measure">账号体系、云端同步、多设备、排行榜与社交、移动端、手机 App 联动、语音对话与"学你说话"、导出与分享角色、Live2D。</p>
+  <div class="gap">
+    <h4>补漏 6 · 白噪音与场景的版权</h4>
+    <p class="measure">队内文档提到不同场景配备音效。<b>不要下载来路不明的音频。</b>用 Web Audio 程序生成粉红噪音／雨声近似（几十行代码，零素材、零版权、零体积）；场景背景用 SVG 色块渐层自绘。评审阶段任何第三方素材都是风险。</p>
+  </div>
+</section>
+
+<section id="s13">
+  <h2><span class="no">13</span>风险登记册</h2>
+  <div class="wrapx"><table>
+    <thead><tr><th>风险</th><th>后果</th><th>处置</th></tr></thead>
+    <tbody>
+      <tr><td>误报把认真看书判成摸鱼</td><td>用户 10 分钟内卸载</td><td>基线标定 + 提高时长阈值 + 一键申诉 + <b>宁可漏报</b></td></tr>
+      <tr><td>被评委听成"又一个监督软件"</td><td>与 redwatch 撞车且无优势</td><td>开场先讲共场与待机生命，摄像头放到第二段</td></tr>
+      <tr><td>现场摄像头识别失败</td><td>致命</td><td>录屏兜底 + 降级路径现场可切</td></tr>
+      <tr><td>美术资产拖垮进度</td><td>做不完</td><td>纯 SVG 路线保底（已验证），AI 生图为可选增强</td></tr>
+      <tr><td>常驻推理烧 CPU</td><td>体验崩塌</td><td>2 FPS 采样 + 检出后短时升频</td></tr>
+      <tr><td>隐私被质询</td><td>失分</td><td>§8 的承诺清单，主动讲</td></tr>
+      <tr><td>做不完</td><td>—</td><td>砍单顺序：F16 → F17 → F15 → F6 → F12。<b>F1+F2+F7+F8 是底线</b></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="s14">
+  <h2><span class="no">14</span>两天半排期</h2>
+  <div class="flow">
+    <div><span class="st">9/4 晚</span><span class="tx">领沙箱与额度（<b>先确认模型池里有没有图像模型</b>）→ 搭 Electron 透明窗外壳 → 把 SVG 角色原型移植进去 <b>· 里程碑：桌面上有一个会呼吸的角色</b></span></div>
+    <div><span class="st">9/5 上午</span><span class="tx">摄像头接入 + 基线标定 + 离席／遮挡／手机三项检测 <b>· 里程碑：它能认出你走了</b></span></div>
+    <div><span class="st">9/5 下午</span><span class="tx">干预阶梯 + 频率上限 + 会话管理（时长／休息／结束）<b>· 里程碑：完整跑通一场 25 分钟</b></span></div>
+    <div><span class="st">9/5 傍晚</span><span class="tx">人格文案 + 今日回放 + 照片转参数（F12）</span></div>
+    <div><span class="st">9/5 夜</span><span class="tx"><b>拉深访对象来试用，跑三分钟测试</b>，按反馈只改最卡的一处</span></div>
+    <div><span class="st">9/6 上午</span><span class="tx">1 页说明 + README + 录屏兜底 + 排练 3 遍</span></div>
+    <div><span class="st">9/6 11:30</span><span class="tx"><b>禁止改代码。</b>只做备份、检查 README 能否照着跑起来</span></div>
+  </div>
+</section>
+
+<section id="s15">
+  <h2><span class="no">15</span>待队内拍板的问题</h2>
+  <ol>
+    <li><b>产品名。</b>「同桌」／「在场」／「自习室」／其他。名字决定路演第一句话。</li>
+    <li><b>默认模式是共场还是督学？</b>我的建议是共场为默认、督学为可选；如果队内认为督学更有记忆点，需要接受"评委可能拿心理学质询"的风险。</li>
+    <li><b>好感度是否保留？</b>若保留，是否接受把"告白"改为"关系深化"。</li>
+    <li><b>存档照片默认开还是默认关？</b>我的建议是默认关。</li>
+    <li><b>角色是一个还是可切换多个？</b>建议只做一个，多角色是 P2。</li>
+  </ol>
+</section>
+
+<footer>
+  <span>同桌 · PRD v1 · 内部文档 · 合并自《关于黑客松赛道二的初步设想》</span>
+  <span>它不会来查你。它只是一直在。</span>
+</footer>
+
+</div>
+</body>
+</html>

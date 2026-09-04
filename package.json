@@ -1,0 +1,13 @@
+{
+  "name": "tongzhuo",
+  "version": "0.1.0",
+  "description": "同桌 — 一个常驻桌面的虚拟同桌。它不会来查你，它只是一直在。",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "latest"
+  }
+}

@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同桌 · 系统架构</title>
+<style>
+:root{
+  --ground:#F3F5F6;--surface:#FFFFFF;--surface-2:#E9ECEF;
+  --ink:#14181C;--ink-2:#454E56;--muted:#737D85;
+  --line:#D2D8DC;--line-soft:#E3E7EA;
+  --accent:#9E1B25;--probe:#2C5C6B;--warn:#8A5B12;--ok:#1B6A55;
+  --serif:Georgia,"Songti SC","Source Han Serif SC","SimSun",serif;
+  --sans:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Cascadia Mono",Consolas,"SF Mono",Menlo,ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0F1216;--surface:#161A1F;--surface-2:#1C2127;
+  --ink:#E6EAEE;--ink-2:#B0B9C0;--muted:#87919A;
+  --line:#293037;--line-soft:#212831;
+  --accent:#E4737C;--probe:#66B2C0;--warn:#D6A445;--ok:#5FBFA0;
+}}
+:root[data-theme="dark"]{
+  --ground:#0F1216;--surface:#161A1F;--surface-2:#1C2127;
+  --ink:#E6EAEE;--ink-2:#B0B9C0;--muted:#87919A;
+  --line:#293037;--line-soft:#212831;
+  --accent:#E4737C;--probe:#66B2C0;--warn:#D6A445;--ok:#5FBFA0;
+}
+*{box-sizing:border-box;margin:0}
+html{color-scheme:light dark}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.8}
+.sheet{max-width:1060px;margin:0 auto;padding:0 26px 90px}
+@media (max-width:620px){.sheet{padding:0 14px 60px}}
+.measure{max-width:40em}
+
+header{padding:54px 0 28px;border-bottom:2px solid var(--ink)}
+.slug{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+h1{font-family:var(--serif);font-size:clamp(28px,4.6vw,42px);line-height:1.15;margin:14px 0 0}
+h1 small{display:block;font-family:var(--sans);font-size:15px;font-weight:400;color:var(--muted);margin-top:12px;line-height:1.7;max-width:46em}
+
+section{padding:42px 0 0}
+h2{font-family:var(--serif);font-size:22px;line-height:1.4;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px}
+h2 .no{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;margin-right:12px;vertical-align:2px}
+p{margin-top:12px;color:var(--ink-2)}
+b,strong{color:var(--ink);font-weight:500}
+code{font-family:var(--mono);font-size:.87em;background:var(--surface-2);padding:1px 5px;border-radius:2px}
+ul{margin-top:12px;padding-left:22px;color:var(--ink-2)}
+li{margin-bottom:5px}
+
+figure{margin:22px 0 0;background:var(--surface);border:1px solid var(--line);padding:20px 18px 14px}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink-2)}
+figcaption{margin-top:14px;font-size:13.5px;color:var(--muted);line-height:1.75;border-top:1px solid var(--line-soft);padding-top:10px}
+figcaption b{color:var(--ink-2)}
+
+.sv-box{fill:var(--surface);stroke:currentColor;stroke-width:1.2}
+.sv-key{fill:var(--surface);stroke:var(--accent);stroke-width:1.8}
+.sv-soft{fill:var(--surface-2);stroke:currentColor;stroke-width:1}
+.sv-t{fill:var(--ink);font-family:var(--sans);font-size:13px;font-weight:500}
+.sv-tt{fill:var(--ink);font-family:var(--sans);font-size:14px;font-weight:600}
+.sv-s{fill:var(--muted);font-family:var(--mono);font-size:10px}
+.sv-l{fill:var(--muted);font-family:var(--mono);font-size:10.5px}
+.sv-band{fill:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.1em}
+.sv-line{stroke:currentColor;stroke-width:1.2;fill:none}
+.sv-dash{stroke:var(--warn);stroke-width:1.3;fill:none;stroke-dasharray:6 4}
+.sv-bound{stroke:var(--ok);stroke-width:1.3;fill:none;stroke-dasharray:7 5}
+.sv-acc{stroke:var(--accent);stroke-width:1.3;fill:none}
+.sv-mut{stroke:var(--muted);stroke-width:1.1;fill:none;stroke-dasharray:4 4}
+
+.note{background:var(--surface-2);border:1px dashed var(--line);padding:14px 18px;margin-top:16px;font-size:14px;color:var(--ink-2)}
+.key{background:var(--surface);border-left:3px solid var(--accent);border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 18px;margin-top:16px}
+.key h3{font-family:var(--serif);font-size:16px;margin-bottom:4px}
+.wrapx{overflow-x:auto;margin-top:16px}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);min-width:520px}
+th,td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line-soft);vertical-align:top;font-size:14px;line-height:1.7}
+tr:last-child td{border-bottom:0}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--surface-2)}
+td:first-child{color:var(--ink);font-weight:500;white-space:nowrap}
+footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between}
+@media print{
+  :root{--ground:#fff;--surface:#fff;--surface-2:#f3f3f3;--ink:#000;--ink-2:#333;--muted:#666;--line:#bbb;--line-soft:#ddd}
+  .sheet{max-width:none;padding:0}figure{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<header>
+  <div class="slug"><span>Build with Care</span><span>赛道二 · 伴学计划</span><span>系统架构 v1</span></div>
+  <h1>同桌 · 系统架构
+    <small>五张图，对应五个必须讲清楚的机制：整体分层与隐私边界、感知管线、双状态机、干预阶梯的频率闸门、角色渲染层的替换点。配合《PRD-同桌》阅读。</small>
+  </h1>
+</header>
+
+<section>
+  <h2><span class="no">01</span>总体架构与隐私边界</h2>
+  <p class="measure">五层，自下而上：输入 → 感知 → 判定 → 决策 → 表现，右侧是唯一的存储。<b>绿色虚线是本机边界</b>——除了可选功能 F16 的一次性照片上传，没有任何数据越过这条线。</p>
+
+  <figure>
+    <svg viewBox="0 0 1000 640" role="img" aria-label="总体架构图：输入层的摄像头、键鼠活动与系统时钟进入感知层的采样器与三个检测器，判定层做基线校正与时序分类，决策层由会话状态机、用户状态机、频率闸门和待机调度器组成，表现层驱动SVG角色与回放页，右侧为本地SQLite存储；一条绿色虚线框出本机边界，唯一越界的是可选的图像生成API">
+      <defs>
+        <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="a1w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8A5B12"/></marker>
+      </defs>
+
+      <rect class="sv-bound" x="18" y="34" width="964" height="500" rx="4"/>
+      <text class="sv-l" x="30" y="26" fill="#1B6A55">本机边界 · 画面与事件不出这条线</text>
+
+      <text class="sv-band" x="128" y="96" text-anchor="end">输入</text>
+      <rect class="sv-box" x="140" y="62" width="193" height="58"/><text class="sv-t" x="236" y="90" text-anchor="middle">摄像头</text><text class="sv-s" x="236" y="107" text-anchor="middle">可拒绝 · 可暂停</text>
+      <rect class="sv-box" x="353" y="62" width="193" height="58"/><text class="sv-t" x="449" y="90" text-anchor="middle">键鼠活动</text><text class="sv-s" x="449" y="107" text-anchor="middle">降级路径 F14</text>
+      <rect class="sv-box" x="566" y="62" width="194" height="58"/><text class="sv-t" x="663" y="90" text-anchor="middle">系统时钟</text><text class="sv-s" x="663" y="107" text-anchor="middle">会话 / 休息点</text>
+
+      <text class="sv-band" x="128" y="186" text-anchor="end">感知</text>
+      <rect class="sv-box" x="140" y="152" width="140" height="58"/><text class="sv-t" x="210" y="180" text-anchor="middle">采样器</text><text class="sv-s" x="210" y="197" text-anchor="middle">2 FPS</text>
+      <rect class="sv-box" x="300" y="152" width="140" height="58"/><text class="sv-t" x="370" y="180" text-anchor="middle">MediaPipe</text><text class="sv-s" x="370" y="197" text-anchor="middle">姿态 · 闭眼</text>
+      <rect class="sv-box" x="460" y="152" width="140" height="58"/><text class="sv-t" x="530" y="180" text-anchor="middle">YOLOv8n</text><text class="sv-s" x="530" y="197" text-anchor="middle">cell phone</text>
+      <rect class="sv-box" x="620" y="152" width="140" height="58"/><text class="sv-t" x="690" y="180" text-anchor="middle">帧统计</text><text class="sv-s" x="690" y="197" text-anchor="middle">遮挡判定</text>
+
+      <text class="sv-band" x="128" y="276" text-anchor="end">判定</text>
+      <rect class="sv-box" x="140" y="242" width="193" height="58"/><text class="sv-t" x="236" y="270" text-anchor="middle">基线标定</text><text class="sv-s" x="236" y="287" text-anchor="middle">15 s · 个体化</text>
+      <rect class="sv-box" x="353" y="242" width="193" height="58"/><text class="sv-t" x="449" y="270" text-anchor="middle">30 s 特征滑窗</text><text class="sv-s" x="449" y="287" text-anchor="middle">时序去抖</text>
+      <rect class="sv-box" x="566" y="242" width="194" height="58"/><text class="sv-t" x="663" y="270" text-anchor="middle">规则分类器</text><text class="sv-s" x="663" y="287" text-anchor="middle">五类行为</text>
+
+      <text class="sv-band" x="128" y="366" text-anchor="end">决策</text>
+      <rect class="sv-box" x="140" y="332" width="140" height="58"/><text class="sv-t" x="210" y="360" text-anchor="middle">会话状态机</text><text class="sv-s" x="210" y="377" text-anchor="middle">陪伴 / 休息</text>
+      <rect class="sv-box" x="300" y="332" width="140" height="58"/><text class="sv-t" x="370" y="360" text-anchor="middle">用户状态机</text><text class="sv-s" x="370" y="377" text-anchor="middle">专注 / 走神</text>
+      <rect class="sv-key" x="460" y="332" width="140" height="58"/><text class="sv-t" x="530" y="360" text-anchor="middle">频率闸门</text><text class="sv-s" x="530" y="377" text-anchor="middle">不打扰的保险丝</text>
+      <rect class="sv-box" x="620" y="332" width="140" height="58"/><text class="sv-t" x="690" y="360" text-anchor="middle">待机调度器</text><text class="sv-s" x="690" y="377" text-anchor="middle">非周期 · 加权</text>
+
+      <text class="sv-band" x="128" y="456" text-anchor="end">表现</text>
+      <rect class="sv-key" x="140" y="422" width="193" height="58"/><text class="sv-t" x="236" y="450" text-anchor="middle">SVG 角色 rig</text><text class="sv-s" x="236" y="467" text-anchor="middle">分层 · 参数化</text>
+      <rect class="sv-box" x="353" y="422" width="193" height="58"/><text class="sv-t" x="449" y="450" text-anchor="middle">气泡与文案</text><text class="sv-s" x="449" y="467" text-anchor="middle">人格皮肤</text>
+      <rect class="sv-box" x="566" y="422" width="194" height="58"/><text class="sv-t" x="663" y="450" text-anchor="middle">今日回放</text><text class="sv-s" x="663" y="467" text-anchor="middle">被看见，不被审判</text>
+
+      <line class="sv-line" x1="450" y1="120" x2="450" y2="146" marker-end="url(#a1)"/>
+      <line class="sv-line" x1="450" y1="210" x2="450" y2="236" marker-end="url(#a1)"/>
+      <line class="sv-line" x1="450" y1="300" x2="450" y2="326" marker-end="url(#a1)"/>
+      <line class="sv-line" x1="450" y1="390" x2="450" y2="416" marker-end="url(#a1)"/>
+
+      <rect class="sv-box" x="800" y="152" width="160" height="328"/>
+      <text class="sv-tt" x="880" y="186" text-anchor="middle">本地存储</text>
+      <text class="sv-s" x="880" y="212" text-anchor="middle">SQLite</text>
+      <text class="sv-s" x="880" y="230" text-anchor="middle">session</text>
+      <text class="sv-s" x="880" y="248" text-anchor="middle">event</text>
+      <text class="sv-s" x="880" y="266" text-anchor="middle">profile</text>
+      <text class="sv-s" x="880" y="284" text-anchor="middle">daily</text>
+      <line class="sv-line" x1="820" y1="308" x2="940" y2="308"/>
+      <text class="sv-s" x="880" y="330" text-anchor="middle">照片档案</text>
+      <text class="sv-s" x="880" y="348" text-anchor="middle">默认关闭</text>
+      <text class="sv-s" x="880" y="366" text-anchor="middle">一键清空</text>
+      <text class="sv-s" x="880" y="400" text-anchor="middle">表情集缓存</text>
+      <text class="sv-s" x="880" y="418" text-anchor="middle">F16 生成物</text>
+
+      <path class="sv-line" d="M760 271 L794 271" marker-end="url(#a1)"/>
+      <text class="sv-l" x="777" y="262" text-anchor="middle">写</text>
+      <path class="sv-line" d="M760 451 L794 451" marker-end="url(#a1)"/>
+      <text class="sv-l" x="777" y="442" text-anchor="middle">读</text>
+
+      <rect class="sv-soft" x="700" y="566" width="260" height="52" stroke="#8A5B12"/>
+      <text class="sv-t" x="830" y="590" text-anchor="middle" fill="#8A5B12">图像生成 API</text>
+      <text class="sv-s" x="830" y="607" text-anchor="middle">仅 F16 · 可选 · 用户主动触发</text>
+      <path class="sv-dash" d="M880 480 L880 560" marker-end="url(#a1w)"/>
+      <text class="sv-l" x="892" y="524" fill="#8A5B12">一次性上传照片</text>
+    </svg>
+    <figcaption><b>要看的三件事：</b>① 唯一穿过绿线的是那条橙色虚线，而它是可选功能且由用户主动触发。② <b>频率闸门被标红，因为它是"不打扰"这条设计原则的物理实现</b>——所有干预都必须过它。③ 感知层与表现层不直接相连：角色不知道摄像头看到了什么，它只知道用户状态机给出的状态。</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="no">02</span>感知管线</h2>
+  <p class="measure">这条管线每 500 毫秒跑一次。<b>时序滑窗和基线校正是它和普通"摄像头检测"的区别</b>——单帧永远不做判定，判定只发生在 30 秒窗口上。</p>
+
+  <figure>
+    <svg viewBox="0 0 1020 350" role="img" aria-label="感知管线：摄像头经2FPS采样器分发给MediaPipe、YOLOv8n与帧统计三个检测器，输出特征向量后进入30秒滑窗，再与基线标定值一起送入规则分类器，得到五类行为标签">
+      <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+
+      <rect class="sv-box" x="16" y="88" width="104" height="56"/><text class="sv-t" x="68" y="114" text-anchor="middle">摄像头</text><text class="sv-s" x="68" y="131" text-anchor="middle">帧</text>
+      <rect class="sv-key" x="156" y="88" width="124" height="56"/><text class="sv-t" x="218" y="114" text-anchor="middle">采样器</text><text class="sv-s" x="218" y="131" text-anchor="middle">2 FPS · 500ms</text>
+
+      <rect class="sv-box" x="320" y="16" width="200" height="56"/><text class="sv-t" x="420" y="42" text-anchor="middle">MediaPipe</text><text class="sv-s" x="420" y="59" text-anchor="middle">pitch / roll / 闭眼 / 人脸框</text>
+      <rect class="sv-box" x="320" y="88" width="200" height="56"/><text class="sv-t" x="420" y="114" text-anchor="middle">YOLOv8n</text><text class="sv-s" x="420" y="131" text-anchor="middle">cell phone 框 · 预训练</text>
+      <rect class="sv-box" x="320" y="160" width="200" height="56"/><text class="sv-t" x="420" y="186" text-anchor="middle">帧统计</text><text class="sv-s" x="420" y="203" text-anchor="middle">亮度 / 像素方差 → 遮挡</text>
+
+      <rect class="sv-box" x="560" y="88" width="124" height="56"/><text class="sv-t" x="622" y="114" text-anchor="middle">特征向量</text><text class="sv-s" x="622" y="131" text-anchor="middle">每帧 12 维</text>
+      <rect class="sv-box" x="720" y="88" width="124" height="56"/><text class="sv-t" x="782" y="114" text-anchor="middle">30 s 滑窗</text><text class="sv-s" x="782" y="131" text-anchor="middle">去抖 · 时序</text>
+
+      <path class="sv-line" d="M120 116 L150 116" marker-end="url(#a2)"/>
+      <path class="sv-line" d="M280 116 L300 116 L300 44 L314 44" marker-end="url(#a2)"/>
+      <path class="sv-line" d="M280 116 L314 116" marker-end="url(#a2)"/>
+      <path class="sv-line" d="M280 116 L300 116 L300 188 L314 188" marker-end="url(#a2)"/>
+      <path class="sv-line" d="M520 44 L540 44 L540 116 L554 116" marker-end="url(#a2)"/>
+      <path class="sv-line" d="M520 116 L554 116" marker-end="url(#a2)"/>
+      <path class="sv-line" d="M520 188 L540 188 L540 116 L554 116" marker-end="url(#a2)"/>
+      <path class="sv-line" d="M684 116 L714 116" marker-end="url(#a2)"/>
+
+      <path class="sv-line" d="M782 144 L782 232 L520 232 L520 258" marker-end="url(#a2)"/>
+
+      <rect class="sv-box" x="200" y="264" width="180" height="56"/><text class="sv-t" x="290" y="290" text-anchor="middle">基线标定值</text><text class="sv-s" x="290" y="307" text-anchor="middle">该用户的"正常"</text>
+      <rect class="sv-key" x="430" y="264" width="180" height="56"/><text class="sv-t" x="520" y="290" text-anchor="middle">规则分类器</text><text class="sv-s" x="520" y="307" text-anchor="middle">相对偏移 + 时长</text>
+      <rect class="sv-box" x="660" y="264" width="330" height="56"/>
+      <text class="sv-t" x="825" y="288" text-anchor="middle">行为标签</text>
+      <text class="sv-s" x="825" y="306" text-anchor="middle">专注 · 离席 · 手机 · 困倦 · 遮挡</text>
+
+      <path class="sv-line" d="M380 292 L424 292" marker-end="url(#a2)"/>
+      <path class="sv-line" d="M610 292 L654 292" marker-end="url(#a2)"/>
+    </svg>
+    <figcaption><b>两个关键决策都在这张图上。</b>① <b>2 FPS 不是 30</b>：判定"打瞌睡 20 秒"不需要高帧率，常驻 30 FPS 会让笔记本一小时掉 20% 电，用户当天卸载。② <b>分类器吃的是相对偏移，不是绝对角度</b>：不同人、不同摄像头高度，"正常看书"的俯角能差 30°，没有左下角那个基线框，所有阈值都是错的。</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="no">03</span>双状态机</h2>
+  <p class="measure">两台状态机，一台管会话，一台管用户。<b>关键规则：只有会话处于"陪伴中"时，用户状态机才运行</b>——休息期间摄像头真正关闭，不是软暂停。</p>
+
+  <figure>
+    <svg viewBox="0 0 1000 340" role="img" aria-label="双状态机图：左侧会话状态机在未开始、陪伴中、休息中、已结束之间转移；右侧用户状态机以专注为中心，向离席、手机、困倦、遮挡四个状态双向转移，仅在陪伴中运行">
+      <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+
+      <line class="sv-mut" x1="500" y1="20" x2="500" y2="320"/>
+      <text class="sv-band" x="30" y="30">会话状态机</text>
+      <text class="sv-band" x="530" y="30">用户状态机 · 仅"陪伴中"时运行</text>
+
+      <rect class="sv-box" x="150" y="52" width="160" height="50"/><text class="sv-t" x="230" y="82" text-anchor="middle">未开始</text>
+      <rect class="sv-key" x="150" y="146" width="160" height="50"/><text class="sv-t" x="230" y="176" text-anchor="middle">陪伴中</text>
+      <rect class="sv-box" x="336" y="146" width="130" height="50"/><text class="sv-t" x="401" y="176" text-anchor="middle">休息中</text>
+      <rect class="sv-box" x="150" y="240" width="160" height="50"/><text class="sv-t" x="230" y="270" text-anchor="middle">已结束</text>
+
+      <path class="sv-line" d="M230 102 L230 140" marker-end="url(#a3)"/>
+      <text class="sv-l" x="240" y="126">设定时长 · 标定</text>
+      <path class="sv-line" d="M310 162 L330 162" marker-end="url(#a3)"/>
+      <text class="sv-l" x="320" y="152" text-anchor="middle">到点</text>
+      <path class="sv-line" d="M330 182 L310 182" marker-end="url(#a3)"/>
+      <text class="sv-l" x="320" y="200" text-anchor="middle">休息结束</text>
+      <path class="sv-line" d="M230 196 L230 234" marker-end="url(#a3)"/>
+      <text class="sv-l" x="240" y="220">时长到 / 手动</text>
+
+      <rect class="sv-key" x="686" y="140" width="128" height="52"/><text class="sv-t" x="750" y="171" text-anchor="middle">专注</text>
+      <rect class="sv-box" x="540" y="44" width="118" height="46"/><text class="sv-t" x="599" y="72" text-anchor="middle">离席</text>
+      <rect class="sv-box" x="842" y="44" width="118" height="46"/><text class="sv-t" x="901" y="72" text-anchor="middle">手机</text>
+      <rect class="sv-box" x="540" y="242" width="118" height="46"/><text class="sv-t" x="599" y="270" text-anchor="middle">困倦</text>
+      <rect class="sv-box" x="842" y="242" width="118" height="46"/><text class="sv-t" x="901" y="270" text-anchor="middle">遮挡</text>
+
+      <line class="sv-line" x1="692" y1="146" x2="646" y2="94" marker-end="url(#a3)" marker-start="url(#a3)"/>
+      <line class="sv-line" x1="808" y1="146" x2="854" y2="94" marker-end="url(#a3)" marker-start="url(#a3)"/>
+      <line class="sv-line" x1="692" y1="186" x2="646" y2="238" marker-end="url(#a3)" marker-start="url(#a3)"/>
+      <line class="sv-line" x1="808" y1="186" x2="854" y2="238" marker-end="url(#a3)" marker-start="url(#a3)"/>
+      <text class="sv-l" x="614" y="120">&gt;25s 无人</text>
+      <text class="sv-l" x="836" y="120">phone &gt;8s</text>
+      <text class="sv-l" x="600" y="222">闭眼+静止 &gt;20s</text>
+      <text class="sv-l" x="838" y="222">画面遮蔽 &gt;5s</text>
+      <text class="sv-l" x="750" y="212" text-anchor="middle">恢复条件成立即回到专注</text>
+    </svg>
+    <figcaption>用户状态机的四个外围状态<b>都能双向回到"专注"</b>，且回程没有惩罚、没有记账——这是"不审判"在状态机层面的实现。左边那条规则同样重要：休息期间不采集，否则"陪伴"就变成了"全程监控"，产品定位当场垮掉。</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="no">04</span>干预阶梯与频率闸门</h2>
+  <p class="measure">这张图解释的是：<b>为什么它检测到了，却经常什么都不做。</b>下面是一场 30 分钟陪伴里的真实时序——四次触发，只有两次真的发出了反馈。</p>
+
+  <figure>
+    <svg viewBox="0 0 1000 300" role="img" aria-label="干预时序图：30分钟内四次行为触发，第一次走L1静默反馈，第二次被10分钟冷却闸门拦下，第三次升级为L2轻声，第四次因同类30分钟内已达两次上限被拦下">
+      <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+
+      <line class="sv-line" x1="60" y1="196" x2="960" y2="196" marker-end="url(#a4)"/>
+      <text class="sv-l" x="60" y="222">0′</text>
+      <text class="sv-l" x="205" y="222">5′</text>
+      <text class="sv-l" x="350" y="222">10′</text>
+      <text class="sv-l" x="495" y="222">15′</text>
+      <text class="sv-l" x="640" y="222">20′</text>
+      <text class="sv-l" x="785" y="222">25′</text>
+      <text class="sv-l" x="930" y="222">30′</text>
+      <line class="sv-mut" x1="205" y1="190" x2="205" y2="202"/>
+      <line class="sv-mut" x1="350" y1="190" x2="350" y2="202"/>
+      <line class="sv-mut" x1="495" y1="190" x2="495" y2="202"/>
+      <line class="sv-mut" x1="640" y1="190" x2="640" y2="202"/>
+      <line class="sv-mut" x1="785" y1="190" x2="785" y2="202"/>
+
+      <line class="sv-acc" x1="147" y1="196" x2="147" y2="150"/>
+      <circle cx="147" cy="146" r="5" fill="#9E1B25"/>
+      <text class="sv-t" x="147" y="132" text-anchor="middle">手机 #1</text>
+      <text class="sv-l" x="147" y="114" text-anchor="middle" fill="#9E1B25">L1 停笔看一眼</text>
+
+      <line class="sv-mut" x1="263" y1="196" x2="263" y2="164"/>
+      <circle cx="263" cy="160" r="4.5" fill="none" stroke="currentColor"/>
+      <text class="sv-l" x="263" y="146" text-anchor="middle">手机 #2</text>
+      <text class="sv-l" x="263" y="128" text-anchor="middle">被拦下 · 10′ 内已干预</text>
+
+      <line class="sv-acc" x1="466" y1="196" x2="466" y2="150"/>
+      <circle cx="466" cy="146" r="5" fill="#9E1B25"/>
+      <text class="sv-t" x="466" y="132" text-anchor="middle">手机 #3</text>
+      <text class="sv-l" x="466" y="114" text-anchor="middle" fill="#9E1B25">L2 一句短句</text>
+
+      <line class="sv-mut" x1="843" y1="196" x2="843" y2="164"/>
+      <circle cx="843" cy="160" r="4.5" fill="none" stroke="currentColor"/>
+      <text class="sv-l" x="843" y="146" text-anchor="middle">手机 #4</text>
+      <text class="sv-l" x="843" y="128" text-anchor="middle">被拦下 · 同类 30′ 已 2 次</text>
+
+      <rect class="sv-soft" x="147" y="240" width="203" height="26" opacity=".7"/>
+      <text class="sv-l" x="248" y="257" text-anchor="middle">冷却 10′</text>
+      <rect class="sv-soft" x="466" y="240" width="203" height="26" opacity=".7"/>
+      <text class="sv-l" x="567" y="257" text-anchor="middle">冷却 10′</text>
+      <text class="sv-l" x="700" y="257">灰点 = 检测到了，但闸门没放行</text>
+    </svg>
+    <figcaption>四次触发，两次沉默。<b>"检测到了却不说话"不是 bug，是产品的主张</b>——L1 永远是停下笔看你一眼，同一行为要到第二次触发才允许出声，L3（明确的话）只在用户主动开启督学模式时才存在。这张图建议直接放进路演，它是最容易被误解、也最能体现设计克制的一处。</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="no">05</span>角色渲染层与三条换脸路径</h2>
+  <p class="measure">角色是一棵分层的 SVG 树。<b>所有个性化方案都只作用于"头部容器"这一层</b>，身体、手臂、待机动画完全不受影响——这是原型能直接复用的原因。</p>
+
+  <figure>
+    <svg viewBox="0 0 1000 360" role="img" aria-label="角色渲染层图：左侧为SVG图层栈，从阴影、身体服装、手臂、后发到头部容器与前发；右侧三条换脸路径丙乙甲分别以改捏脸参数、替换脸底为图片、按表情切图片的方式接入头部容器">
+      <defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+
+      <text class="sv-band" x="40" y="30">SVG 图层栈（由后至前）</text>
+      <rect class="sv-box" x="40" y="44" width="300" height="30"/><text class="sv-t" x="56" y="64">阴影</text>
+      <rect class="sv-box" x="40" y="78" width="300" height="30"/><text class="sv-t" x="56" y="98">身体 + 服装（3 套模板）</text>
+      <rect class="sv-box" x="40" y="112" width="300" height="30"/><text class="sv-t" x="56" y="132">手臂 L / R（独立旋转）</text>
+      <rect class="sv-box" x="40" y="146" width="300" height="30"/><text class="sv-t" x="56" y="166">后发</text>
+
+      <rect class="sv-key" x="40" y="184" width="300" height="104"/>
+      <text class="sv-tt" x="56" y="206">头部容器</text>
+      <text class="sv-s" x="56" y="226">└ 脸底（ellipse 或 image）</text>
+      <text class="sv-s" x="56" y="246">└ 眉 · 眼 · 嘴（独立图层）</text>
+      <text class="sv-s" x="56" y="266">└ 腮红</text>
+      <text class="sv-s" x="56" y="282">可整体旋转 / 位移</text>
+
+      <rect class="sv-box" x="40" y="298" width="300" height="30"/><text class="sv-t" x="56" y="318">前发</text>
+
+      <rect class="sv-box" x="560" y="44" width="400" height="66"/>
+      <text class="sv-tt" x="580" y="70">丙 · 照片转参数</text>
+      <text class="sv-s" x="580" y="92">本地 landmark → 眼距/眼型/脸宽/肤色发色</text>
+      <rect class="sv-box" x="560" y="146" width="400" height="66"/>
+      <text class="sv-tt" x="580" y="172">乙 · 单张风格化头</text>
+      <text class="sv-s" x="580" y="194">脸底换成 image，五官仍由 SVG 驱动</text>
+      <rect class="sv-box" x="560" y="248" width="400" height="66"/>
+      <text class="sv-tt" x="580" y="274">甲 · 预生成表情集</text>
+      <text class="sv-s" x="580" y="296">10–12 张 · 本地缓存 · 运行时切图</text>
+
+      <path class="sv-line" d="M554 77 L400 77 L400 210 L346 210" marker-end="url(#a5)"/>
+      <text class="sv-l" x="410" y="70">改参数</text>
+      <path class="sv-line" d="M554 179 L440 179 L440 226 L346 226" marker-end="url(#a5)"/>
+      <text class="sv-l" x="450" y="172">换脸底</text>
+      <path class="sv-line" d="M554 281 L400 281 L400 242 L346 242" marker-end="url(#a5)"/>
+      <text class="sv-l" x="410" y="300">按表情切图</text>
+    </svg>
+    <figcaption>三条箭头都指向同一个盒子——<b>这就是"换脸不影响身体"的全部含义</b>。呼吸、眨眼、伸懒腰、趴下这些行为跑在图层栈上，与头部里装的是矢量五官还是位图表情无关。甲方案唯一的额外要求是：生成的每张表情头必须先按两眼中心做归一化对齐，否则切换时角色会抖。</figcaption>
+  </figure>
+
+  <div class="key">
+    <h3>为什么这套分层值得强调</h3>
+    <p class="measure">它把这个作品里最不确定的部分（美术）<b>隔离成了一层可替换的东西</b>。极端情况下 AI 生图全部失败，产品照样完整——只是脸是矢量的。做架构的时候把风险最高的模块关进一个盒子里，是这张图真正想说的事。</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">06</span>模块与技术选型一览</h2>
+  <div class="wrapx"><table>
+    <thead><tr><th>模块</th><th>选型</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>桌面外壳</td><td>Electron 透明置顶窗</td><td>无边框 / 点击穿透 / 不抢焦点；可参考现成桌宠仓库</td></tr>
+      <tr><td>角色渲染</td><td>内联 SVG + CSS transform</td><td>零图片资产，原型已验证</td></tr>
+      <tr><td>人脸与姿态</td><td>MediaPipe Face Landmarker</td><td>468 关键点 + 52 blendshape + 变换矩阵，本地跑</td></tr>
+      <tr><td>手机检测</td><td>YOLOv8n（COCO 预训练）</td><td><code>cell phone</code> 是第 67 类，<b>不用标数据不用训练</b></td></tr>
+      <tr><td>遮挡检测</td><td>帧亮度 / 像素方差</td><td>十几行代码，效果戏剧性强</td></tr>
+      <tr><td>存储</td><td>SQLite，四张表</td><td><code>event</code> 只增不改，统计全部重算</td></tr>
+      <tr><td>音效</td><td>Web Audio 程序生成</td><td>粉红噪音自己合成，<b>不引入任何第三方音频素材</b></td></tr>
+      <tr><td>图像生成</td><td>赛事模型池（待确认）</td><td>9/4 领额度时第一件事：确认池子里有没有图像模型</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><b>无构建步骤是刻意的。</b>两天半里任何依赖安装出问题都是致命伤；前端原生 JS，需要库时从 CDN 引 UMD 包，Python 侧只装 <code>mediapipe</code>、<code>ultralytics</code>、<code>opencv-python</code> 三个。</div>
+</section>
+
+<footer>
+  <span>同桌 · 系统架构 v1 · 配合 PRD-同桌 阅读</span>
+  <span>检测到了却不说话，是主张，不是 bug</span>
+</footer>
+
+</div>
+</body>
+</html>

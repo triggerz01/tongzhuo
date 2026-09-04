@@ -1,0 +1,97 @@
+'use strict';
+const { app, BrowserWindow, ipcMain, screen, shell } = require('electron');
+const path = require('path');
+
+let petWin = null;
+let panelWin = null;
+
+/** 角色窗：透明、无边框、置顶、默认鼠标穿透 */
+function createPetWindow() {
+  const { workArea } = screen.getPrimaryDisplay();
+  const W = 340, H = 470;
+
+  petWin = new BrowserWindow({
+    width: W,
+    height: H,
+    x: workArea.x + workArea.width - W - 24,
+    y: workArea.y + workArea.height - H - 12,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: false,
+    alwaysOnTop: true,
+    hasShadow: false,
+    // 不抢焦点：点它不会把你正在写的东西挤到后台
+    focusable: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  petWin.setAlwaysOnTop(true, 'screen-saver');
+  petWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
+  // 默认整窗穿透，forward:true 让 renderer 仍能收到 mousemove 以便判断悬停
+  petWin.setIgnoreMouseEvents(true, { forward: true });
+  petWin.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+
+  petWin.on('closed', () => { petWin = null; });
+}
+
+/** 控制台窗：会话设置、标定、捏脸、日志 */
+function createPanelWindow() {
+  if (panelWin) { panelWin.show(); panelWin.focus(); return; }
+  panelWin = new BrowserWindow({
+    width: 460,
+    height: 640,
+    frame: false,
+    resizable: true,
+    minWidth: 380,
+    minHeight: 480,
+    backgroundColor: '#00000000',
+    transparent: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  panelWin.loadFile(path.join(__dirname, '..', 'renderer', 'panel.html'));
+  panelWin.on('closed', () => { panelWin = null; });
+}
+
+app.whenReady().then(() => {
+  createPetWindow();
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createPetWindow();
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+/* ---------------- IPC ---------------- */
+
+// renderer 告诉主进程：鼠标现在是不是压在角色/可交互区域上
+ipcMain.on('pet:interactive', (_e, interactive) => {
+  if (!petWin) return;
+  petWin.setIgnoreMouseEvents(!interactive, { forward: true });
+  // 需要点击时才允许获取焦点，避免平时抢焦点
+  petWin.setFocusable(!!interactive);
+});
+
+ipcMain.on('panel:open', () => createPanelWindow());
+ipcMain.on('panel:close', () => { if (panelWin) panelWin.close(); });
+
+// 控制台 → 角色窗 的状态广播
+ipcMain.on('bus', (_e, msg) => {
+  if (petWin && !petWin.isDestroyed()) petWin.webContents.send('bus', msg);
+  if (panelWin && !panelWin.isDestroyed()) panelWin.webContents.send('bus', msg);
+});
+
+ipcMain.handle('app:quit', () => app.quit());
+ipcMain.on('open-external', (_e, url) => shell.openExternal(url));

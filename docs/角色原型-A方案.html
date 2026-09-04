@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>空白脸角色原型</title>
+<style>
+:root{
+  --ground:#F2F4F5;--surface:#FFFFFF;--surface-2:#E9ECEF;
+  --ink:#14181C;--ink-2:#454E56;--muted:#737D85;
+  --line:#D3D8DC;--line-soft:#E4E8EA;--accent:#9E1B25;
+  --stage:#E5E9EC;
+  --sans:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Cascadia Mono",Consolas,"SF Mono",Menlo,ui-monospace,monospace;
+  --serif:Georgia,"Songti SC","SimSun",serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0F1216;--surface:#161A1F;--surface-2:#1C2127;
+  --ink:#E6EAEE;--ink-2:#B0B9C0;--muted:#87919A;
+  --line:#293037;--line-soft:#212831;--accent:#E4737C;--stage:#1A1F25;
+}}
+:root[data-theme="dark"]{
+  --ground:#0F1216;--surface:#161A1F;--surface-2:#1C2127;
+  --ink:#E6EAEE;--ink-2:#B0B9C0;--muted:#87919A;
+  --line:#293037;--line-soft:#212831;--accent:#E4737C;--stage:#1A1F25;
+}
+*{box-sizing:border-box;margin:0}
+html{color-scheme:light dark}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 60px}
+header{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:22px}
+.slug{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--serif);font-size:30px;line-height:1.2;margin-top:8px}
+h1 small{display:block;font-family:var(--sans);font-size:14px;font-weight:400;color:var(--muted);margin-top:8px;line-height:1.7;max-width:56em}
+
+.cols{display:grid;grid-template-columns:1fr 372px;gap:20px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+
+.stage{background:var(--surface);border:1px solid var(--line);padding:0;overflow:hidden}
+.stage .bar{display:flex;gap:6px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);flex-wrap:wrap}
+.bar .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-right:auto}
+button{font-family:var(--mono);font-size:11px;background:var(--surface);color:var(--ink-2);border:1px solid var(--line);padding:4px 9px;cursor:pointer;line-height:1.6}
+button:hover{color:var(--ink);border-color:var(--ink-2)}
+button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.canvas{background:var(--stage);display:flex;align-items:flex-end;justify-content:center;padding:18px 0 0;min-height:420px}
+svg#ch{width:340px;max-width:100%;height:auto;display:block}
+.saybox{min-height:34px;display:flex;justify-content:center;align-items:center;padding:6px 16px 14px;background:var(--stage)}
+.say{font-size:13.5px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);padding:5px 12px;border-radius:14px;opacity:0;transition:opacity .4s}
+.say.on{opacity:1}
+
+.panel{background:var(--surface);border:1px solid var(--line)}
+.panel h2{font-size:12px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.grp{padding:12px 14px;border-bottom:1px solid var(--line-soft)}
+.grp:last-child{border-bottom:0}
+.row{display:grid;grid-template-columns:74px 1fr 38px;gap:10px;align-items:center;margin-bottom:8px}
+.row:last-child{margin-bottom:0}
+.row label{font-size:12.5px;color:var(--ink-2)}
+.row output{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:100%;height:26px;padding:0;border:1px solid var(--line);background:var(--surface);cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.acts{display:flex;flex-wrap:wrap;gap:6px;padding:12px 14px}
+
+.log{font-family:var(--mono);font-size:11.5px;line-height:1.9;color:var(--ink-2);padding:10px 14px;max-height:172px;overflow-y:auto}
+.log div{display:grid;grid-template-columns:52px 1fr;gap:8px;border-bottom:1px solid var(--line-soft);padding:2px 0}
+.log div:last-child{border-bottom:0}
+.log .t{color:var(--muted)}
+.log .empty{color:var(--muted);grid-template-columns:1fr}
+
+.notes{margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:900px){.notes{grid-template-columns:1fr}}
+.note{background:var(--surface);border:1px solid var(--line);border-top:2px solid var(--accent);padding:14px 16px}
+.note h3{font-size:14.5px;font-family:var(--serif);margin-bottom:6px}
+.note p{font-size:13px;color:var(--ink-2);line-height:1.75}
+.note b{color:var(--ink);font-weight:500}
+footer{margin-top:26px;font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;border-top:1px solid var(--line);padding-top:14px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* --- character rig --- */
+#breath{transform-box:view-box;transform-origin:150px 352px;animation:breathe 4.2s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1) translateY(0px)}50%{transform:scale(1.012) translateY(-2.5px)}}
+#figure{transform-box:view-box;transform-origin:150px 348px;transition:transform .55s cubic-bezier(.3,.85,.35,1)}
+#head{transform-box:view-box;transform-origin:150px 218px;transition:transform .5s cubic-bezier(.3,.85,.35,1)}
+#armL{transform-box:view-box;transform-origin:99px 250px;transition:transform .5s cubic-bezier(.3,.85,.35,1)}
+#armR{transform-box:view-box;transform-origin:201px 250px;transition:transform .5s cubic-bezier(.3,.85,.35,1)}
+#face{transition:opacity .5s}
+@media (prefers-reduced-motion:reduce){#breath{animation:none}#figure,#head,#armL,#armR{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="slug">Prototype A · 纯 SVG 参数化角色 · 零外部依赖</p>
+  <h1>空白脸角色原型
+    <small>全部由代码构成：没有一张图片。捏脸即改参数，眨眼即改一个属性，20 个行为共用同一套图层。右侧随便拖，看看这条路线够不够看。</small>
+  </h1>
+</header>
+
+<div class="cols">
+
+  <div class="stage">
+    <div class="bar">
+      <span class="lbl">Stage</span>
+      <button type="button" id="btnFace" class="on">有脸</button>
+      <button type="button" id="btnLoop" class="on">待机中</button>
+      <button type="button" id="btnSpeed">演示节奏</button>
+    </div>
+    <div class="canvas">
+      <svg id="ch" viewBox="0 0 300 380" role="img" aria-label="一个由矢量图形组成的桌面伙伴角色">
+        <ellipse cx="150" cy="356" rx="76" ry="9" fill="currentColor" opacity=".10"/>
+        <g id="breath">
+        <g id="figure">
+
+          <!-- 后发 -->
+          <g id="hairBack">
+            <ellipse id="hb0" cx="150" cy="156" rx="67" ry="72"/>
+            <ellipse id="hbL" cx="76" cy="188" rx="17" ry="36" opacity="0"/>
+            <ellipse id="hbR" cx="224" cy="188" rx="17" ry="36" opacity="0"/>
+            <circle  id="hbBun" cx="150" cy="86" r="19" opacity="0"/>
+          </g>
+
+          <!-- 手臂（在身体之下，避免遮挡衣领） -->
+          <g id="armL"><rect x="84" y="242" width="27" height="88" rx="13.5"/><circle cx="97.5" cy="330" r="12"/></g>
+          <g id="armR"><rect x="189" y="242" width="27" height="88" rx="13.5"/><circle cx="202.5" cy="330" r="12"/></g>
+
+          <!-- 脖子 + 躯干 -->
+          <rect id="neck" x="138" y="198" width="24" height="30" rx="9"/>
+          <path id="torso" d="M96,352 L100,266 Q105,234 133,226 L167,226 Q195,234 200,266 L204,352 Z"/>
+
+          <!-- 服装：西装 -->
+          <g id="fitSuit">
+            <path d="M150,226 L133,226 Q105,234 100,266 L97,352 L150,352 Z" fill="#26303A"/>
+            <path d="M150,226 L167,226 Q195,234 200,266 L203,352 L150,352 Z" fill="#26303A"/>
+            <path d="M150,228 L128,240 L150,300 L172,240 Z" fill="#F4F5F3"/>
+            <path id="tie" d="M150,244 L142,254 L150,300 L158,254 Z"/>
+            <path d="M150,228 L128,240 L136,262 Z" fill="#1B242C"/>
+            <path d="M150,228 L172,240 L164,262 Z" fill="#1B242C"/>
+          </g>
+
+          <!-- 服装：教师开衫 -->
+          <g id="fitTeacher" style="display:none">
+            <path d="M133,226 Q105,234 100,266 L97,352 L126,352 L124,244 Z" fill="#6F7F76"/>
+            <path d="M167,226 Q195,234 200,266 L203,352 L174,352 L176,244 Z" fill="#6F7F76"/>
+            <path d="M150,230 L136,240 L150,268 L164,240 Z" fill="#DDE2E4"/>
+            <rect id="tCollar" x="144" y="256" width="12" height="46" rx="5"/>
+          </g>
+
+          <!-- 服装：校服（水手领） -->
+          <g id="fitSchool" style="display:none">
+            <path d="M133,226 L150,262 L167,226 Q192,232 198,258 L150,240 L102,258 Q108,232 133,226 Z" fill="#33415A"/>
+            <path d="M150,262 L134,232 L166,232 Z" fill="#33415A"/>
+            <path id="ribbon" d="M150,258 L134,270 L150,278 L166,270 Z"/>
+          </g>
+
+          <!-- 头 -->
+          <g id="head">
+            <ellipse id="earL" cx="93" cy="168" rx="9" ry="13"/>
+            <ellipse id="earR" cx="207" cy="168" rx="9" ry="13"/>
+            <ellipse id="faceBase" cx="150" cy="162" rx="58" ry="64"/>
+
+            <g id="face">
+              <ellipse id="blushL" cx="107" cy="188" rx="12" ry="7" opacity=".28" fill="#E0806F"/>
+              <ellipse id="blushR" cx="193" cy="188" rx="12" ry="7" opacity=".28" fill="#E0806F"/>
+              <line id="browL" stroke-linecap="round"/>
+              <line id="browR" stroke-linecap="round"/>
+              <ellipse id="eyeL"/><ellipse id="eyeR"/>
+              <circle id="hlL" r="2.6" fill="#fff"/><circle id="hlR" r="2.6" fill="#fff"/>
+              <path id="mouth" fill="none" stroke-linecap="round"/>
+            </g>
+
+            <!-- 前发 -->
+            <path id="hairFront" d="M90,152 Q94,100 150,98 Q206,100 210,152 Q194,126 150,126 Q106,126 90,152 Z"/>
+          </g>
+
+        </g>
+        </g>
+      </svg>
+    </div>
+    <div class="saybox"><span class="say" id="say"></span></div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>模板 / Template</h2>
+      <div class="grp"><div class="chips">
+        <button type="button" data-tpl="suit" class="on">西装</button>
+        <button type="button" data-tpl="teacher">教师制服</button>
+        <button type="button" data-tpl="school">校服</button>
+      </div></div>
+
+      <h2>捏脸 / Face</h2>
+      <div class="grp">
+        <div class="row"><label>眼睛大小</label><input type="range" id="pEyeSize" min="4" max="15" step=".5" value="9.5"><output id="oEyeSize"></output></div>
+        <div class="row"><label>眼距</label><input type="range" id="pEyeDist" min="16" max="34" step=".5" value="24"><output id="oEyeDist"></output></div>
+        <div class="row"><label>眼睛位置</label><input type="range" id="pEyeY" min="152" max="180" step="1" value="166"><output id="oEyeY"></output></div>
+        <div class="row"><label>眉毛角度</label><input type="range" id="pBrow" min="-10" max="10" step=".5" value="2"><output id="oBrow"></output></div>
+        <div class="row"><label>眉毛粗细</label><input type="range" id="pBrowW" min="2" max="9" step=".5" value="4.5"><output id="oBrowW"></output></div>
+        <div class="row"><label>脸型宽窄</label><input type="range" id="pFaceW" min="48" max="66" step="1" value="58"><output id="oFaceW"></output></div>
+        <div class="row"><label>腮红</label><input type="range" id="pBlush" min="0" max="60" step="1" value="28"><output id="oBlush"></output></div>
+      </div>
+      <div class="grp">
+        <div class="row" style="grid-template-columns:74px 1fr"><label>嘴型</label><div class="chips">
+          <button type="button" data-mouth="smile" class="on">微笑</button>
+          <button type="button" data-mouth="flat">平</button>
+          <button type="button" data-mouth="小o">小口</button>
+          <button type="button" data-mouth="wave">抿</button>
+        </div></div>
+      </div>
+      <div class="grp">
+        <div class="row" style="grid-template-columns:74px 1fr"><label>发型</label><div class="chips">
+          <button type="button" data-hair="short" class="on">短发</button>
+          <button type="button" data-hair="bun">盘发</button>
+          <button type="button" data-hair="twin">双马尾</button>
+        </div></div>
+      </div>
+
+      <h2>配色 / Palette</h2>
+      <div class="grp">
+        <div class="row"><label>肤色</label><input type="color" id="pSkin" value="#F1C7A6"><output></output></div>
+        <div class="row"><label>发色</label><input type="color" id="pHair" value="#33292A"><output></output></div>
+        <div class="row"><label>点缀色</label><input type="color" id="pAcc" value="#9E1B25"><output></output></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px">
+      <h2>手动触发行为 / Actions</h2>
+      <div class="acts" id="acts"></div>
+      <h2>待机行为日志 / Idle log</h2>
+      <div class="log" id="log"><div class="empty">等待第一个待机行为…</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <div class="note">
+    <h3>看这三件事</h3>
+    <p>① 它<b>从不完全静止</b>——呼吸 4.2 秒一轮，眨眼随机且成簇。② 行为间隔<b>不是固定周期</b>，"演示节奏" 5–13 秒，"真实节奏" 40–110 秒。③ 每个动作都有<b>前摇和收尾</b>（0.5 秒缓动），没有瞬切。</p>
+  </div>
+  <div class="note">
+    <h3>为什么捏脸是白赚的</h3>
+    <p>五官是独立图层，所以<b>眨眼 = 把眼睛的 ry 改成 1.2</b>，打哈欠 = 换一条嘴巴路径，发呆 = 眼睛压扁 55%。捏脸系统和表情动画是同一套资产，做了前者等于顺手做完后者。</p>
+  </div>
+  <div class="note">
+    <h3>整个角色 0 张图片</h3>
+    <p>全部是 SVG 图形，文件几十 KB，<b>换色、换服装、换体型都是改参数</b>。没有版权问题、没有一致性漂移、没有恐怖谷。缺点也说清楚：它是"清爽"，不是"精美"。</p>
+  </div>
+</div>
+
+<footer><span>Prototype A · 本地文件 · 零外部请求</span><span>不是"像个人"，是"确实有人在"</span></footer>
+</div>
+
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+var S={skin:'#F1C7A6',hair:'#33292A',acc:'#9E1B25',
+  eyeSize:9.5,eyeDist:24,eyeY:166,brow:2,browW:4.5,faceW:58,blush:28,
+  mouth:'smile',hair3:'short',tpl:'suit',faceOn:true};
+var P={headRot:0,headY:0,armL:0,armR:0,figY:0,figRot:0,eyeK:1,eyeDX:0,mouthOverride:null,blink:false};
+
+var TPL={
+  suit:   {hair:'#33292A',hair3:'short',fit:'fitSuit',   torso:'#26303A',neckShade:1},
+  teacher:{hair:'#3A2F2B',hair3:'bun',  fit:'fitTeacher',torso:'#DDE2E4',neckShade:1},
+  school: {hair:'#2E2726',hair3:'twin', fit:'fitSchool', torso:'#F1F3F5',neckShade:1}
+};
+
+function mouthPath(kind){
+  if(kind==='smile') return 'M137,198 Q150,209 163,198';
+  if(kind==='flat')  return 'M140,200 L160,200';
+  if(kind==='小o')   return 'M144,200 a6,7 0 1,0 12,0 a6,7 0 1,0 -12,0';
+  if(kind==='wave')  return 'M138,200 Q145,195 150,200 Q155,205 162,200';
+  if(kind==='yawn')  return 'M138,198 a12,15 0 1,0 24,0 a12,15 0 1,0 -24,0';
+  if(kind==='open')  return 'M141,197 a9,10 0 1,0 18,0 a9,10 0 1,0 -18,0';
+  return 'M140,200 L160,200';
+}
+
+function render(){
+  // 颜色
+  $('faceBase').setAttribute('fill',S.skin);
+  $('earL').setAttribute('fill',S.skin); $('earR').setAttribute('fill',S.skin);
+  $('neck').setAttribute('fill',S.skin);
+  ['hb0','hbL','hbR','hbBun'].forEach(function(k){$(k).setAttribute('fill',S.hair)});
+  $('hairFront').setAttribute('fill',S.hair);
+  $('armL').setAttribute('fill',TPL[S.tpl].torso); $('armR').setAttribute('fill',TPL[S.tpl].torso);
+  $('torso').setAttribute('fill',TPL[S.tpl].torso);
+  ['tie','tCollar','ribbon'].forEach(function(k){ if($(k)) $(k).setAttribute('fill',S.acc); });
+
+  // 服装
+  ['fitSuit','fitTeacher','fitSchool'].forEach(function(k){
+    $(k).style.display = (k===TPL[S.tpl].fit) ? '' : 'none';
+  });
+  // 发型
+  $('hbL').setAttribute('opacity', S.hair3==='twin'?1:0);
+  $('hbR').setAttribute('opacity', S.hair3==='twin'?1:0);
+  $('hbBun').setAttribute('opacity', S.hair3==='bun'?1:0);
+
+  // 脸型
+  $('faceBase').setAttribute('rx',S.faceW);
+  $('earL').setAttribute('cx',150-S.faceW+1); $('earR').setAttribute('cx',150+S.faceW-1);
+  $('blushL').setAttribute('opacity',S.blush/100); $('blushR').setAttribute('opacity',S.blush/100);
+  $('blushL').setAttribute('cx',150-S.faceW*0.74); $('blushR').setAttribute('cx',150+S.faceW*0.74);
+  $('blushL').setAttribute('cy',S.eyeY+22); $('blushR').setAttribute('cy',S.eyeY+22);
+
+  // 眉
+  var bl=$('browL'),br=$('browR'),by=S.eyeY-22;
+  bl.setAttribute('x1',150-S.eyeDist-14); bl.setAttribute('y1',by-S.brow);
+  bl.setAttribute('x2',150-S.eyeDist+13); bl.setAttribute('y2',by+S.brow);
+  br.setAttribute('x1',150+S.eyeDist+14); br.setAttribute('y1',by-S.brow);
+  br.setAttribute('x2',150+S.eyeDist-13); br.setAttribute('y2',by+S.brow);
+  [bl,br].forEach(function(b){b.setAttribute('stroke',S.hair);b.setAttribute('stroke-width',S.browW)});
+
+  // 嘴
+  var m=$('mouth');
+  var kind = P.mouthOverride || S.mouth;
+  m.setAttribute('d',mouthPath(kind));
+  var filled = (kind==='小o'||kind==='yawn'||kind==='open');
+  m.setAttribute('fill', filled ? '#7A3B3B' : 'none');
+  m.setAttribute('stroke', filled ? 'none' : '#7A3B3B');
+  m.setAttribute('stroke-width',3);
+
+  applyPose();
+}
+
+function applyPose(){
+  var eL=$('eyeL'),eR=$('eyeR'),hL=$('hlL'),hR=$('hlR');
+  var ry = P.blink ? 1.3 : S.eyeSize*P.eyeK;
+  var rx = S.eyeSize*0.82;
+  var cxL=150-S.eyeDist+P.eyeDX, cxR=150+S.eyeDist+P.eyeDX;
+  eL.setAttribute('cx',cxL); eL.setAttribute('cy',S.eyeY); eL.setAttribute('rx',rx); eL.setAttribute('ry',ry); eL.setAttribute('fill','#2A2320');
+  eR.setAttribute('cx',cxR); eR.setAttribute('cy',S.eyeY); eR.setAttribute('rx',rx); eR.setAttribute('ry',ry); eR.setAttribute('fill','#2A2320');
+  var showHL = (!P.blink && P.eyeK>0.7) ? 1 : 0;
+  hL.setAttribute('cx',cxL+rx*0.38); hL.setAttribute('cy',S.eyeY-ry*0.42); hL.setAttribute('opacity',showHL);
+  hR.setAttribute('cx',cxR+rx*0.38); hR.setAttribute('cy',S.eyeY-ry*0.42); hR.setAttribute('opacity',showHL);
+
+  $('head').style.transform  = 'rotate('+P.headRot+'deg) translateY('+P.headY+'px)';
+  $('figure').style.transform= 'translateY('+P.figY+'px) rotate('+P.figRot+'deg)';
+  $('armL').style.transform  = 'rotate('+P.armL+'deg)';
+  $('armR').style.transform  = 'rotate('+P.armR+'deg)';
+  $('face').style.opacity    = S.faceOn ? 1 : 0;
+}
+
+/* ---------- 眨眼：随机且成簇 ---------- */
+function blinkOnce(cb){
+  P.blink=true; applyPose();
+  setTimeout(function(){ P.blink=false; applyPose(); if(cb) cb(); },110);
+}
+function blinkLoop(){
+  var gap = 2400 + Math.random()*4200;
+  setTimeout(function(){
+    blinkOnce(function(){
+      if(Math.random()<0.28) setTimeout(blinkOnce,180);   // 成簇：偶尔连眨两下
+    });
+    blinkLoop();
+  },gap);
+}
+
+/* ---------- 行为库 ---------- */
+function say(t){
+  var el=$('say');
+  if(!t){ el.classList.remove('on'); return; }
+  el.textContent=t; el.classList.add('on');
+  setTimeout(function(){ el.classList.remove('on'); },3600);
+}
+function reset(after){
+  setTimeout(function(){
+    P.headRot=0;P.headY=0;P.armL=0;P.armR=0;P.figY=0;P.figRot=0;P.eyeK=1;P.eyeDX=0;P.mouthOverride=null;
+    render();
+  },after);
+}
+var ACTIONS=[
+  {id:'write',label:'低头写字',w:5,cd:14000,dur:6000,run:function(){
+    P.headRot=7;P.headY=3;P.armR=-22;P.armL=6;render();reset(6000);}},
+  {id:'stretch',label:'伸懒腰',w:2,cd:60000,dur:2600,run:function(){
+    P.armL=32;P.armR=-32;P.figY=-7;P.headRot=-5;P.mouthOverride='open';P.eyeK=0.15;render();reset(2600);
+    say('唔——');}},
+  {id:'yawn',label:'打哈欠',w:2,cd:55000,dur:2200,run:function(){
+    P.mouthOverride='yawn';P.eyeK=0.12;P.headRot=-4;render();reset(2200);}},
+  {id:'daze',label:'发呆',w:3,cd:30000,dur:4200,run:function(){
+    P.eyeK=0.55;render();reset(4200);}},
+  {id:'drink',label:'喝水',w:2,cd:70000,dur:2600,run:function(){
+    P.armR=-72;P.headRot=-3;P.mouthOverride='小o';render();reset(2600);}},
+  {id:'rub',label:'揉眼睛',w:2,cd:70000,dur:2400,run:function(){
+    P.armR=-78;P.eyeK=0.1;render();reset(2400);}},
+  {id:'glance',label:'看你一眼',w:3,cd:26000,dur:1800,run:function(){
+    P.eyeDX=5;P.headRot=-2.5;render();reset(1800);}},
+  {id:'lie',label:'趴一会儿',w:1,cd:120000,dur:5200,run:function(){
+    P.figY=30;P.figRot=5;P.headRot=8;P.eyeK=0.1;render();reset(5200);
+    say('我先歇会儿');}},
+  {id:'tidy',label:'整理桌面',w:2,cd:80000,dur:2600,run:function(){
+    P.armL=-38;P.headRot=5;render();reset(2600);}},
+  {id:'rare',label:'笔掉了',w:0.4,cd:240000,dur:2800,run:function(){
+    P.headRot=14;P.figY=6;P.armR=-46;render();reset(2800);
+    say('……');}}
+];
+
+/* ---------- 待机调度器：非周期 + 冷却 ---------- */
+var last={}, looping=true, fast=true;
+function pick(){
+  var now=Date.now();
+  var pool=ACTIONS.filter(function(a){ return now-(last[a.id]||0) > a.cd; });
+  if(!pool.length) pool=ACTIONS.slice();
+  var total=pool.reduce(function(s,a){return s+a.w},0), r=Math.random()*total;
+  for(var i=0;i<pool.length;i++){ r-=pool[i].w; if(r<=0) return pool[i]; }
+  return pool[0];
+}
+function logIt(a){
+  var box=$('log'); var e=box.querySelector('.empty'); if(e) e.remove();
+  var d=new Date(), p=function(n){return (n<10?'0':'')+n};
+  var row=document.createElement('div');
+  row.innerHTML='<span class="t">'+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())+'</span><span>'+a.label+'</span>';
+  box.insertBefore(row,box.firstChild);
+  while(box.children.length>40) box.removeChild(box.lastChild);
+}
+function fire(a){ last[a.id]=Date.now(); a.run(); logIt(a); }
+function loop(){
+  var gap = fast ? (5000+Math.random()*8000) : (40000+Math.random()*70000);
+  setTimeout(function(){
+    if(looping){ fire(pick()); }
+    loop();
+  },gap);
+}
+
+/* ---------- 控件 ---------- */
+function bind(id,key,out,fmt){
+  var el=$(id); if(!el) return;
+  el.addEventListener('input',function(){
+    S[key]=parseFloat(el.value);
+    if(out&&$(out)) $(out).textContent=(fmt?fmt(el.value):el.value);
+    render();
+  });
+  if(out&&$(out)) $(out).textContent=(fmt?fmt(el.value):el.value);
+}
+bind('pEyeSize','eyeSize','oEyeSize');
+bind('pEyeDist','eyeDist','oEyeDist');
+bind('pEyeY','eyeY','oEyeY');
+bind('pBrow','brow','oBrow');
+bind('pBrowW','browW','oBrowW');
+bind('pFaceW','faceW','oFaceW');
+bind('pBlush','blush','oBlush');
+['pSkin|skin','pHair|hair','pAcc|acc'].forEach(function(pair){
+  var a=pair.split('|');
+  $(a[0]).addEventListener('input',function(){ S[a[1]]=$(a[0]).value; render(); });
+});
+function groupPick(sel,attr,fn){
+  var nodes=document.querySelectorAll(sel);
+  Array.prototype.forEach.call(nodes,function(b){
+    b.addEventListener('click',function(){
+      Array.prototype.forEach.call(nodes,function(x){x.classList.remove('on')});
+      b.classList.add('on'); fn(b.getAttribute(attr)); render();
+    });
+  });
+}
+groupPick('[data-mouth]','data-mouth',function(v){S.mouth=v});
+groupPick('[data-hair]','data-hair',function(v){S.hair3=v});
+groupPick('[data-tpl]','data-tpl',function(v){
+  S.tpl=v; var t=TPL[v]; S.hair=t.hair; S.hair3=t.hair3;
+  $('pHair').value=t.hair;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-hair]'),function(x){
+    x.classList.toggle('on', x.getAttribute('data-hair')===t.hair3);
+  });
+});
+
+$('btnFace').addEventListener('click',function(){
+  S.faceOn=!S.faceOn; this.classList.toggle('on',S.faceOn);
+  this.textContent = S.faceOn ? '有脸' : '出厂状态';
+  applyPose();
+});
+$('btnLoop').addEventListener('click',function(){
+  looping=!looping; this.classList.toggle('on',looping);
+  this.textContent = looping ? '待机中' : '已暂停';
+});
+$('btnSpeed').addEventListener('click',function(){
+  fast=!fast; this.textContent = fast ? '演示节奏' : '真实节奏';
+  this.classList.toggle('on',!fast);
+});
+
+var acts=$('acts');
+ACTIONS.forEach(function(a){
+  var b=document.createElement('button');
+  b.type='button'; b.textContent=a.label;
+  b.addEventListener('click',function(){ fire(a); });
+  acts.appendChild(b);
+});
+
+render();
+blinkLoop();
+loop();
+})();
+</script>
+</body>
+</html>
