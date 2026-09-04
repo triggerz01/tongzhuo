@@ -21,6 +21,9 @@ Build with Care · 中国人民大学首届黑客松 · 赛道二（伴学计划
 
 ---
 
+> **新加入的同学先看 [SETUP.md](SETUP.md)**（环境搭建，含国内网络的三个坑）
+> **开工前先看 [CONTRIBUTING.md](CONTRIBUTING.md)**（分工与防冲突约定）
+
 ## 跑起来
 
 ### 1. 桌面端（必需，零门槛）
