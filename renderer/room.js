@@ -881,6 +881,8 @@ window.TZRoom = {
   talk: (sec) => face && face.talk(sec ?? 2),
   yawn: () => face && face.yawn(),
   react: reactTo,
+  morph: (n, v) => face && face.setMorph(n, v, 8),
+  recipe: (n, lv) => face && face.applyRecipe(n, lv ?? 1),
   pip: setPip,
   calib: (m) => { if (m) { calibMode = m; } openCalib(); },
   wsState: () => (ws ? ws.readyState : -1),

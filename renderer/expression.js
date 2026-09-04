@@ -14,6 +14,31 @@
 const EMOTIONS = ['happy', 'angry', 'sad', 'relaxed', 'surprised'];
 const VISEMES = ['aa', 'ih', 'ou', 'ee', 'oh'];
 
+/* 情绪配方：直接调分区形变，不用 VRM 的预设。
+ *
+ * 为什么：这个模型的预设每个只绑了一个"整脸合成"形变（happy → Fcl_ALL_Joy），
+ * 眉眼嘴一起拉满，没有中间态 —— 想要"微微一笑但眼睛还睁着"根本做不到，
+ * 这就是表情显得怪的原因。而模型里有 38 个分区形变可以单独控制
+ * （眉 5 / 眼 14 / 嘴 19），自己配就能要多细有多细。
+ *
+ * 分区形变没有被任何预设绑定，所以直接写 morphTargetInfluences
+ * 不会和 VRM 的表情管理器打架。
+ */
+const RECIPES = {
+  // 淡淡的满意：只动眉和嘴，眼睛保持睁开——这是预设做不到的
+  happy:     { Fcl_BRW_Joy: 0.45, Fcl_MTH_Joy: 0.55, Fcl_EYE_Joy: 0.15 },
+  // 真的笑起来才闭眼
+  bigSmile:  { Fcl_BRW_Joy: 0.7,  Fcl_MTH_Joy: 0.9,  Fcl_EYE_Joy: 0.75 },
+  // 失望，不是生气：眉毛垮下来，嘴角下沉，眼睛还看着你
+  sad:       { Fcl_BRW_Sorrow: 0.65, Fcl_MTH_Sorrow: 0.4, Fcl_EYE_Sorrow: 0.22 },
+  angry:     { Fcl_BRW_Angry: 0.7,  Fcl_MTH_Angry: 0.35, Fcl_EYE_Angry: 0.3 },
+  surprised: { Fcl_BRW_Surprised: 0.8, Fcl_EYE_Surprised: 0.55, Fcl_MTH_Surprised: 0.45 },
+  // 放松：几乎只有嘴角一点点，用来做微表情
+  relaxed:   { Fcl_BRW_Fun: 0.3, Fcl_MTH_Fun: 0.35 },
+  // 困：眉毛垮 + 眼睛半闭
+  sleepy:    { Fcl_BRW_Sorrow: 0.35, Fcl_EYE_Close: 0.45, Fcl_MTH_Sorrow: 0.15 }
+};
+
 export class Expressions {
   constructor(vrm) {
     this.vrm = vrm;
@@ -21,6 +46,22 @@ export class Expressions {
     this.available = new Set(
       this.mgr ? Object.keys(this.mgr.expressionMap || {}) : []
     );
+
+    // 分区形变索引：名字 → [{mesh, index}, ...]（一个名字可能出现在多个 mesh 上）
+    this.morphs = new Map();
+    if (vrm && vrm.scene) {
+      vrm.scene.traverse((o) => {
+        if (!o.isMesh || !o.morphTargetDictionary || !o.morphTargetInfluences) return;
+        for (const name in o.morphTargetDictionary) {
+          const idx = o.morphTargetDictionary[name];
+          if (!this.morphs.has(name)) this.morphs.set(name, []);
+          this.morphs.get(name).push({ mesh: o, index: idx });
+        }
+      });
+    }
+    // 有分区形变就用配方，否则退回 VRM 预设
+    this.useRecipes = this.morphs.has('Fcl_BRW_Joy') && this.morphs.has('Fcl_MTH_Joy');
+    this.mch = {};   // 分区形变的缓动状态
 
     /** name -> {cur, target, speed} */
     this.ch = {};
@@ -46,6 +87,24 @@ export class Expressions {
 
   has(name) { return this.available.has(name); }
 
+  /** 直接设一个分区形变的目标值 */
+  setMorph(name, target, speed = 5) {
+    if (!this.morphs.has(name)) return;
+    const c = this.mch[name] || (this.mch[name] = { cur: 0, target: 0, speed: 5 });
+    c.target = Math.max(0, Math.min(1, target));
+    c.speed = speed;
+  }
+
+  /** 按配方铺一组分区形变，配方里没提到的归零 */
+  applyRecipe(name, level = 1, speed = 4) {
+    const r = RECIPES[name];
+    if (!r) return false;
+    const wanted = new Set(Object.keys(r));
+    for (const k in this.mch) if (!wanted.has(k)) this.setMorph(k, 0, speed * 0.8);
+    for (const k in r) this.setMorph(k, r[k] * level, speed);
+    return true;
+  }
+
   /** 设一个通道的目标值。speed 是每秒变化量。 */
   set(name, target, speed = 5) {
     if (!this.has(name)) return;
@@ -61,9 +120,14 @@ export class Expressions {
    * @param {number} hold  保持秒数
    */
   play(name, level = 0.8, hold = 2.5) {
-    if (!this.has(name)) return false;
-    for (const e of EMOTIONS) if (e !== name) this.set(e, 0, 3);
-    this.set(name, level, 4);
+    if (this.useRecipes && RECIPES[name]) {
+      for (const e of EMOTIONS) this.set(e, 0, 6);   // 预设让位给配方
+      this.applyRecipe(name, level);
+    } else {
+      if (!this.has(name)) return false;
+      for (const e of EMOTIONS) if (e !== name) this.set(e, 0, 3);
+      this.set(name, level, 4);
+    }
     this.emotion = name;
     this.emotionUntil = performance.now() / 1000 + hold;
     return true;
@@ -72,6 +136,7 @@ export class Expressions {
   /** 情绪立刻收回 */
   clearEmotion(speed = 2.5) {
     for (const e of EMOTIONS) this.set(e, 0, speed);
+    for (const k in this.mch) this.setMorph(k, 0, speed);
     this.emotion = null;
   }
 
@@ -171,6 +236,21 @@ export class Expressions {
         : Math.max(c.target, c.cur - step);
       this._raw(name, c.cur);
     }
+    for (const name in this.mch) {
+      const c = this.mch[name];
+      if (c.cur === c.target) continue;
+      const step = c.speed * dt;
+      c.cur = c.cur < c.target
+        ? Math.min(c.target, c.cur + step)
+        : Math.max(c.target, c.cur - step);
+      this._rawMorph(name, c.cur);
+    }
+  }
+
+  _rawMorph(name, value) {
+    const list = this.morphs.get(name);
+    if (!list) return;
+    for (const { mesh, index } of list) mesh.morphTargetInfluences[index] = value;
   }
 
   _raw(name, value) {
@@ -181,7 +261,11 @@ export class Expressions {
   dump() {
     const out = {};
     for (const name in this.ch) if (this.ch[name].cur > 0.01) out[name] = +this.ch[name].cur.toFixed(2);
-    return { channels: out, emotion: this.emotion, talking: performance.now() / 1000 < this.talkUntil,
+    const mo = {};
+    for (const name in this.mch) if (this.mch[name].cur > 0.01) mo[name] = +this.mch[name].cur.toFixed(2);
+    return { channels: out, morphs: mo, emotion: this.emotion,
+             talking: performance.now() / 1000 < this.talkUntil,
+             useRecipes: this.useRecipes, morphCount: this.morphs.size,
              available: [...this.available] };
   }
 }
