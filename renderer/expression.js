@@ -85,6 +85,8 @@ export class Expressions {
     // 情绪
     this.emotion = null;
     this.emotionUntil = 0;
+    this.recipeNow = null;      // {name, level}，说话时要按这个重铺
+    this.mouthDamp = 1;         // 说话时压低配方里的嘴部权重，给口型让路
 
     // 微表情：脸不能长时间一动不动
     this.microNext = 6 + Math.random() * 10;
@@ -104,10 +106,20 @@ export class Expressions {
   applyRecipe(name, level = 1, speed = 4) {
     const r = RECIPES[name];
     if (!r) return false;
+    this.recipeNow = { name, level };
     const wanted = new Set(Object.keys(r));
     for (const k in this.mch) if (!wanted.has(k)) this.setMorph(k, 0, speed * 0.8);
-    for (const k in r) this.setMorph(k, r[k] * level, speed);
+    for (const k in r) {
+      // 嘴部形变在说话时要让位，否则微笑的嘴形会把元音口型压平
+      const damp = k.startsWith('Fcl_MTH') ? this.mouthDamp : 1;
+      this.setMorph(k, r[k] * level * damp, speed);
+    }
     return true;
+  }
+
+  /** 说话开始/结束时重铺配方，让嘴部权重跟着变 */
+  _reflowMouth() {
+    if (this.recipeNow) this.applyRecipe(this.recipeNow.name, this.recipeNow.level, 8);
   }
 
   /** 设一个通道的目标值。speed 是每秒变化量。 */
@@ -143,6 +155,7 @@ export class Expressions {
     if (this.useRecipes && RECIPES[recipe]) {
       for (const e of EMOTIONS) this.set(e, 0, 6);
       this.applyRecipe(recipe, level);
+      this.recipeBase = level;
       this.emotion = recipe;
       this.emotionUntil = performance.now() / 1000 + hold;
       return true;
@@ -169,12 +182,24 @@ export class Expressions {
     if (now < this.yawnUntil) return;      // 正在打哈欠，不插话
     this.talkUntil = now + Math.max(0.3, seconds);
     this.visemeNext = 0;
+    this.mouthDamp = 0.35;
+    this._reflowMouth();
+  }
+
+  /** 保证口型至少还要动这么久（不缩短已有的） */
+  talkAtLeast(seconds) {
+    const t = performance.now() / 1000 + seconds;
+    if (t > this.talkUntil) {
+      this.talkUntil = t;
+      if (this.mouthDamp !== 0.35) { this.mouthDamp = 0.35; this._reflowMouth(); }
+    }
   }
 
   stopTalk() {
     this.talkUntil = 0;
     for (const v of VISEMES) this.set(v, 0, 10);
     this.viseme = null;
+    if (this.mouthDamp !== 1) { this.mouthDamp = 1; this._reflowMouth(); }
   }
 
   /** 打哈欠：嘴大张 + 眯眼，1 秒左右 */
@@ -231,6 +256,18 @@ export class Expressions {
       }
     } else if (this.viseme) {
       this.stopTalk();
+    }
+
+    /* ---- 说话时让表情跟着轻微起伏，避免"冻住的笑脸 + 乱动的嘴" ---- */
+    if (this.recipeNow && now < this.talkUntil) {
+      const wob = 1 + Math.sin(now * 5.2) * 0.10;
+      const r = RECIPES[this.recipeNow.name];
+      if (r) {
+        for (const k in r) {
+          if (k.startsWith('Fcl_MTH')) continue;   // 嘴归口型管
+          this.setMorph(k, r[k] * this.recipeNow.level * wob, 10);
+        }
+      }
     }
 
     /* ---- 情绪到期自动收回 ---- */

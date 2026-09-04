@@ -539,12 +539,17 @@ function onPerception(m) {
 /* 反应 = 表情 + 动作 + 台词，三样一起来才协调。
  * 动作用"角色"指定，缺哪个就退到候选里的下一个，缺光了就只做表情。 */
 const REACTIONS = {
-  praise:     { recipe: 'bigSmile',   level: 0.9,  hold: 4.0, role: 'praise' },
-  disappoint: { recipe: 'frown',      level: 0.85, hold: 5.0, role: 'disappoint' },
-  lonely:     { recipe: 'sad',        level: 0.7,  hold: 4.5, role: 'lonely' },
-  welcome:    { recipe: 'bigSmile',   level: 0.85, hold: 3.5, role: 'welcome' },
+  praise:     { recipe: 'bigSmile',   level: 0.9,  hold: 4.0, role: 'praise',
+                say: '你已经坐了很久了，厉害啊。' },
+  disappoint: { recipe: 'frown',      level: 0.85, hold: 5.0, role: 'disappoint',
+                say: '手机。' },
+  lonely:     { recipe: 'sad',        level: 0.7,  hold: 4.5, role: 'lonely',
+                say: '你去哪儿了，我一个人坐着呢。' },
+  welcome:    { recipe: 'bigSmile',   level: 0.85, hold: 3.5, role: 'welcome',
+                say: '你回来啦，我等你半天了。' },
   sleepy:     { recipe: 'sleepy',     level: 0.8,  hold: 3.5, role: null, yawn: true },
-  puzzled:    { recipe: 'surprised',  level: 0.75, hold: 2.5, role: 'nod' },
+  puzzled:    { recipe: 'surprised',  level: 0.75, hold: 2.5, role: 'nod',
+                say: '？' },
   calm:       { recipe: 'gentleSmile', level: 0.5, hold: 3.0, role: null }
 };
 
@@ -557,7 +562,13 @@ function react(name, line) {
     const clip = clipFor(r.role);
     if (clip) playClip(clip);
   }
-  if (line) say(line, Math.max(2600, r.hold * 1000));
+  // 没传台词就用默认的 —— 只笑不张嘴看着发傻，嘴动起来才像个活人
+  const text = line !== undefined ? line : r.say;
+  if (text) {
+    say(text, Math.max(2600, r.hold * 1000));
+    // 台词短、情绪长的时候，嘴停下来太早会露馅。至少动到情绪的 70%。
+    if (face) face.talkAtLeast(r.hold * 0.7);
+  }
   return true;
 }
 
@@ -876,7 +887,9 @@ function say(text, ms) {
   if (lineTimer) clearTimeout(lineTimer);
   lineTimer = setTimeout(() => el.classList.remove('on'), ms || 3600);
   // 弹了气泡却不张嘴，看起来是"字幕"不是"说话"。按字数估个时长。
-  if (face && text) face.talk(Math.min(4, 0.28 + text.length * 0.14));
+  // 中文大约每秒 4–5 个字。下限 1.4 秒 —— 太短的话嘴一闪就停，
+  // 看起来还是"只在笑"，这正是之前的问题。
+  if (face && text) face.talk(Math.max(1.4, Math.min(4.5, 0.5 + text.length * 0.19)));
 }
 
 /* 会话计时（巡查逻辑下一步接上） */

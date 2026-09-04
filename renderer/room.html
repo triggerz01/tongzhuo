@@ -69,6 +69,9 @@
   .dock button:hover{color:#fff;border-color:#46525d}
   .dock button.primary{background:#9E1B25;color:#fff;border-color:#9E1B25}
   .dock .grow{margin-left:auto;display:flex;gap:8px}
+  .dock .sep{width:1px;height:16px;background:#2f3841;display:inline-block}
+  #dbgBar{background:#12171d;border-top:1px solid #232a32}
+  #dbgBar label{color:#7d8791}
 
   /* 画中人：腾讯会议那种角落小窗。画面是感知层推过来的带标注帧，
      不是前端自己开摄像头——Windows 上摄像头基本独占，前端再开一路
@@ -220,6 +223,21 @@
     <code>tongzhuo/assets/models/</code><br>
     然后点下面的「重新加载模型」。
   </div>
+</div>
+
+<div class="dock" id="dbgBar">
+  <label>调表情</label>
+  <button id="btnFreeze">冻结动作</button>
+  <span class="sep"></span>
+  <button data-react="calm">待机微笑</button>
+  <button data-react="praise">开心夸你</button>
+  <button data-react="disappoint">失望皱眉</button>
+  <button data-react="lonely">难过</button>
+  <button data-react="welcome">你回来了</button>
+  <button data-react="sleepy">犯困</button>
+  <button data-react="puzzled">疑惑</button>
+  <span class="sep"></span>
+  <button id="btnTalk">说话口型</button>
 </div>
 
 <div class="dock">
