@@ -45,6 +45,17 @@ _LABEL_COLOR = {
 }
 
 
+def _dashed_rect(img, p1, p2, color, dash: int = 8) -> None:
+    """虚线框：表示"这一帧没检出，但还在保持期内"。"""
+    (x1, y1), (x2, y2) = p1, p2
+    for x in range(x1, x2, dash * 2):
+        cv2.line(img, (x, y1), (min(x + dash, x2), y1), color, 2)
+        cv2.line(img, (x, y2), (min(x + dash, x2), y2), color, 2)
+    for y in range(y1, y2, dash * 2):
+        cv2.line(img, (x1, y), (x1, min(y + dash, y2)), color, 2)
+        cv2.line(img, (x2, y), (x2, min(y + dash, y2)), color, 2)
+
+
 def annotate(bgr: np.ndarray, f: Frame, label: str, duration: float) -> np.ndarray:
     """在画面上叠加检测结果。返回新图，不改原图。"""
     img = bgr.copy()
@@ -61,9 +72,15 @@ def annotate(bgr: np.ndarray, f: Frame, label: str, duration: float) -> np.ndarr
             cv2.line(img, (px, py), (px + dx, py), _C_FACE, 4)
             cv2.line(img, (px, py), (px, py + dy), _C_FACE, 4)
 
+    held = f.extra.get("phone_held", False)
     for (x1_, y1_, x2_, y2_) in f.extra.get("phone_boxes", []):
-        cv2.rectangle(img, (int(x1_), int(y1_)), (int(x2_), int(y2_)), _C_PHONE, 2)
-        cv2.putText(img, "PHONE", (int(x1_), max(14, int(y1_) - 6)),
+        p1, p2 = (int(x1_), int(y1_)), (int(x2_), int(y2_))
+        if held:
+            # 保持期：这一帧其实没检出，画虚线，不假装看见了
+            _dashed_rect(img, p1, p2, _C_PHONE)
+        else:
+            cv2.rectangle(img, p1, p2, _C_PHONE, 2)
+        cv2.putText(img, "PHONE?" if held else "PHONE", (p1[0], max(14, p1[1] - 6)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, _C_PHONE, 1, cv2.LINE_AA)
 
     # 底部状态条

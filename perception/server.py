@@ -39,8 +39,8 @@ CAPTURE_FPS_PREVIEW = 15.0
 CAPTURE_FPS_IDLE = 2.0
 FACE_FPS_PREVIEW = 5.0
 FACE_FPS_IDLE = 2.0
-PHONE_FPS = 2.0
-PHONE_FPS_BOOST = 5.0      # 检出手机后短时升频确认
+PHONE_FPS = 3.0            # 手机会动，比人脸更需要采样密度
+PHONE_FPS_BOOST = 6.0      # 检出手机后短时升频，抓住它移动的过程
 BOOST_SEC = 6.0
 
 # ---- 取景模式 ----

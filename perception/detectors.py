@@ -26,7 +26,17 @@ except Exception:  # pragma: no cover
     _HAS_MP = False
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "face_landmarker.task")
-OBJ_MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "efficientdet_lite0.tflite")
+_MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
+
+def _pick_object_model() -> str:
+    """有更大的模型就优先用。想换只要把文件丢进 models/，不用改代码。"""
+    for name in ("efficientdet_lite2.tflite", "efficientdet_lite0.tflite"):
+        p = os.path.join(_MODEL_DIR, name)
+        if os.path.exists(p):
+            return p
+    return os.path.join(_MODEL_DIR, "efficientdet_lite0.tflite")
+
+OBJ_MODEL_PATH = _pick_object_model()
 
 
 @dataclass
@@ -163,10 +173,17 @@ class PhoneDetector:
     # 这两种在 PRD 里本来就是不同阈值的两条行为，之前没法区分。
     TARGETS = ("cell phone", "person")
 
-    def __init__(self, model_path: str = OBJ_MODEL_PATH, score: float = 0.35) -> None:
+    # 检出后保持一段时间。手机一晃就是运动模糊，小模型很容易漏一两帧；
+    # 而判定要求"连续 N 秒有手机"，漏一帧累计就清零，阈值永远达不到。
+    # 所以这里做迟滞：见过就按住，直到确实消失超过 HOLD_SEC。
+    HOLD_SEC = 2.5
+
+    def __init__(self, model_path: str = OBJ_MODEL_PATH, score: float = 0.28) -> None:
         self.ok = False
         self._det = None
         self._t0 = time.time()
+        self._phone_seen_at = 0.0
+        self._phone_boxes: list = []
         if not _HAS_MP:
             print("[perception] 手机检测未启用：没有 mediapipe")
             return
@@ -217,8 +234,16 @@ class PhoneDetector:
                 out.person = True
             else:
                 boxes.append(rect)
-        out.phone = len(boxes) > 0
-        out.extra["phone_boxes"] = boxes
+        now = time.time()
+        if boxes:
+            self._phone_seen_at = now
+            self._phone_boxes = boxes
+        held = (now - self._phone_seen_at) < self.HOLD_SEC
+
+        out.phone = bool(boxes) or held
+        # 保持期内沿用上一次的框，但标记出来——预览里画成虚线，不骗人
+        out.extra["phone_boxes"] = boxes if boxes else (self._phone_boxes if held else [])
+        out.extra["phone_held"] = bool(held and not boxes)
 
         # 手机框是否贴近人脸（举起来刷视频）
         if boxes and out.face:
