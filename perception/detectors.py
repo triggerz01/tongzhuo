@@ -122,6 +122,7 @@ class FaceAnalyzer:
         x1, y1 = pts[:, 0].max(), pts[:, 1].max()
         out.face_area = float(((x1 - x0) * (y1 - y0)) / (w * h))
         out.face_cy = float(((y0 + y1) / 2.0) / h)
+        out.extra["face_box"] = (float(x0), float(y0), float(x1), float(y1))
 
         # 头部姿态：模型直接给 4x4 位姿矩阵
         if res.facial_transformation_matrixes:

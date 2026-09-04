@@ -93,7 +93,19 @@ git tag day1-end && git push --tags
 { "cmd": "pause" }      // 暂停并释放摄像头（休息时用，不是软暂停）
 { "cmd": "resume" }
 { "cmd": "calibrate" }  // 15 秒基线标定
+{ "cmd": "preview", "on": true }   // 画中人开关
 ```
+
+### 二进制帧 = 画中人
+
+WebSocket 上的**二进制消息一律是画中人的一帧 JPEG**（带检测标注，320px 宽，
+2 FPS，每帧 15–25KB），不用再包一层协议，前端 `ev.data instanceof Blob` 就能区分。
+
+只有 `{"cmd":"preview","on":true}` 之后才会推，默认不推——省 CPU，也是隐私上的默认值。
+
+**画面为什么从 Python 出，而不是前端 getUserMedia**：Windows 上摄像头基本是独占的，
+前端再开一路会把检测器饿死。而且推的是**带标注的帧**——用户看到的就是程序处理的全部，
+隐私上讲得清。
 
 **改协议必须两个人一起改。** 加字段可以单方面加（对方忽略就行），
 改字段名或语义要说一声。
@@ -135,4 +147,7 @@ git tag day1-end && git push --tags
 - 环境装不上 → 看 [SETUP.md](SETUP.md)，国内网络的三道墙都写在那儿
 - 拉下来跑不起来 → 先 `npm install`，再看是不是 Electron 二进制没下下来
 - 合并冲突 → 别自己硬解，喊一声，两个人一起看
+- **Python 的 websockets 客户端连不上本机** → 这台机器环境里有 `HTTP_PROXY`，
+  客户端库会把 `127.0.0.1` 也走代理。加 `websockets.connect(uri, proxy=None)`。
+  （Chromium 对 localhost 有内置绕过，前端不受影响）
 - **快到冻结时间了 → 停手。** 9/6 11:30 之后不许改代码，只做备份和排练

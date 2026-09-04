@@ -422,6 +422,100 @@ function tick() {
   renderer.render(scene, camera);
 }
 
+
+/* ---------------- 感知层：WebSocket + 画中人 ---------------- */
+/* 画面由 Python 那边推过来（带标注的 JPEG，二进制帧）。
+ * 不用前端 getUserMedia：Windows 上摄像头基本独占，前端再开一路
+ * 会把检测器饿死。而且推标注帧还有个好处——用户看到的就是程序
+ * 处理的全部，隐私上讲得清。 */
+const WS_URL = 'ws://127.0.0.1:8765';
+let ws = null, wsTimer = null;
+let pipOn = false;
+let lastBlob = null;
+
+const LABEL_CN = {
+  focus: '专注', away: '离席', phone: '玩手机',
+  drowsy: '犯困', covered: '遮挡镜头', calibrating: '标定中', unknown: '—'
+};
+
+function wsSend(obj) {
+  if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; }
+  return false;
+}
+
+function connectPerception() {
+  try { ws = new WebSocket(WS_URL); } catch (e) { retryWs(); return; }
+  ws.binaryType = 'blob';
+
+  ws.onopen = () => {
+    $('camDot2').classList.add('on');
+    $('camText').textContent = '摄像头已连接';
+    wsSend({ cmd: 'start' });
+    if (pipOn) wsSend({ cmd: 'preview', on: true });
+    console.log('[room] 感知层已连接');
+  };
+
+  ws.onclose = () => {
+    $('camDot2').classList.remove('on');
+    $('camText').textContent = '摄像头未连接';
+    $('pipLabel').textContent = '连接已断开';
+    retryWs();
+  };
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+
+  ws.onmessage = (ev) => {
+    // 二进制 = 画中人的一帧
+    if (ev.data instanceof Blob) {
+      if (!pipOn) return;
+      const url = URL.createObjectURL(ev.data);
+      const img = $('pipImg');
+      const prev = lastBlob;
+      img.onload = () => { if (prev) URL.revokeObjectURL(prev); };
+      img.src = url;
+      lastBlob = url;
+      return;
+    }
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    onPerception(m);
+  };
+}
+function retryWs() { if (wsTimer) return; wsTimer = setTimeout(() => { wsTimer = null; connectPerception(); }, 4000); }
+
+let lastLabel = null;
+function onPerception(m) {
+  if (m.type === 'hello') {
+    console.log('[room] 感知层握手', m);
+    $('camText').textContent = m.phone ? '摄像头已连接' : '摄像头已连接（手机检测未启用）';
+  }
+  if (m.type === 'state') {
+    const cn = LABEL_CN[m.label] || m.label;
+    $('pipLabel').textContent = `${cn} · ${m.duration.toFixed(0)}s`;
+    if (m.label !== lastLabel) {
+      lastLabel = m.label;
+      $('camText').textContent = '识别：' + cn;
+    }
+    // 联动先只做最轻的一层：认出你走了，角色抬头看一眼
+    if (m.trigger && m.label === 'away') play('lookAway');
+  }
+  if (m.type === 'calibrating') say('保持你平时看书的姿势，15 秒…', 15000);
+  if (m.type === 'calibrated') say(m.ok ? '记住你的姿势了。' : ('标定失败：' + (m.reason || '')), 4000);
+  if (m.type === 'error') say('摄像头出错：' + m.message, 5000);
+}
+
+function setPip(on) {
+  pipOn = !!on;
+  $('pip').hidden = !pipOn;
+  $('btnPip').classList.toggle('on', pipOn);
+  if (!pipOn && lastBlob) { URL.revokeObjectURL(lastBlob); lastBlob = null; $('pipImg').removeAttribute('src'); }
+  if (!wsSend({ cmd: 'preview', on: pipOn }) && pipOn) $('pipLabel').textContent = '感知层未连接';
+}
+
+function play(name) {
+  if (useMixamo && clips[name]) return playClip(name);
+  const d = ACTIONS.find(a => a.name === name);
+  if (d) idle.action = { def: d, t: 0 };
+}
+
 /* ---------------- 场景与 UI ---------------- */
 // 没有真实背景图时的兜底（CSS 渐变）
 const FALLBACK = [
@@ -536,6 +630,8 @@ $('btnStart').addEventListener('click', startSession);
 $('btnStop').addEventListener('click', stopSession);
 $('btnReload').addEventListener('click', () => loadModel());
 $('btnScene').addEventListener('click', () => applyScene(sceneIdx + 1));
+$('btnPip').addEventListener('click', () => setPip(!pipOn));
+$('pipClose').addEventListener('click', () => setPip(false));
 $('btnPose').addEventListener('click', () => {
   idle.action = { def: pickAction(), t: 0 };
   say('（测试动作：' + idle.action.def.name + '）', 1800);
@@ -549,6 +645,7 @@ loadScenes().then((real) => {
   if (!real) console.log('[room] assets/scenes 里还没有背景图，先用 CSS 兜底');
 });
 loadModel();
+connectPerception();
 
 // 供 CDP 调试与外部驱动
 window.TZRoom = {
@@ -561,6 +658,8 @@ window.TZRoom = {
   },
   actions: () => useMixamo ? Object.keys(clips) : ACTIONS.map(a => a.name),
   usingMixamo: () => useMixamo,
+  pip: setPip,
+  wsState: () => (ws ? ws.readyState : -1),
   debugPos: () => {
     const v3 = new THREE.Vector3();
     const g = (n) => { const b = vrm.humanoid.getNormalizedBoneNode(n); return b ? +b.getWorldPosition(v3).y.toFixed(3) : null; };

@@ -21,6 +21,7 @@ import cv2
 
 from detectors import Frame, FaceAnalyzer, PhoneDetector, frame_stats
 from classifier import Classifier
+import preview
 
 try:
     import websockets
@@ -43,6 +44,7 @@ class Perception:
         self.clients: set = set()
         self.running = False          # 是否正在采集
         self._boost_until = 0.0
+        self.preview = False          # 画中人默认关闭：省 CPU，也是隐私上的默认值
 
     # ---------- 摄像头 ----------
 
@@ -67,6 +69,19 @@ class Perception:
             cv2.destroyAllWindows()
 
     # ---------- 广播 ----------
+
+    async def broadcast_bytes(self, data: bytes) -> None:
+        """二进制消息一律是画中人的 JPEG 帧，前端据此区分，不用再包一层协议。"""
+        if not self.clients:
+            return
+        dead = []
+        for ws in list(self.clients):
+            try:
+                await ws.send(data)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.clients.discard(ws)
 
     async def broadcast(self, msg: dict) -> None:
         if not self.clients:
@@ -122,6 +137,12 @@ class Perception:
                     "ts": f.ts,
                 })
 
+            if self.preview and self.clients:
+                shot = preview.annotate(bgr, f, res["label"], res["duration"])
+                jpg = preview.encode(shot)
+                if jpg:
+                    await self.broadcast_bytes(jpg)
+
             if f.phone:
                 self._boost_until = time.time() + CONFIRM_SEC
 
@@ -142,7 +163,8 @@ class Perception:
     async def handle(self, ws) -> None:
         self.clients.add(ws)
         await ws.send(json.dumps({"type": "hello", "fps": FPS,
-                                  "phone": self.phone.ok}, ensure_ascii=False))
+                                  "phone": self.phone.ok,
+                                  "preview": self.preview}, ensure_ascii=False))
         try:
             async for raw in ws:
                 try:
@@ -158,6 +180,10 @@ class Perception:
                     self.running = False
                     self.close_cam()          # 真正关闭，不是软暂停
                     print("[perception] 采集暂停，摄像头已释放")
+                elif cmd == "preview":
+                    self.preview = bool(msg.get("on"))
+                    print(f"[perception] 画中人 {'开' if self.preview else '关'}")
+                    await ws.send(json.dumps({"type": "preview", "on": self.preview}))
                 elif cmd == "calibrate":
                     self.running = True
                     self.clf.start_calibration(15.0)
