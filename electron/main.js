@@ -63,10 +63,36 @@ function createPanelWindow() {
   panelWin.on('closed', () => { panelWin = null; });
 }
 
+/** 自习室窗：B 形态，场景 + 3D 角色 + 计时器 */
+let roomWin = null;
+function createRoomWindow() {
+  if (roomWin) { roomWin.show(); roomWin.focus(); return; }
+  roomWin = new BrowserWindow({
+    width: 1000,
+    height: 680,
+    minWidth: 720,
+    minHeight: 520,
+    backgroundColor: '#12161a',
+    title: '自习室',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  roomWin.setMenuBarVisibility(false);
+  roomWin.loadFile(path.join(__dirname, '..', 'renderer', 'room.html'));
+  roomWin.on('closed', () => { roomWin = null; });
+}
+
+const wantRoom = process.argv.includes('--room');
+
 app.whenReady().then(() => {
-  createPetWindow();
+  if (wantRoom) createRoomWindow(); else createPetWindow();
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createPetWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      if (wantRoom) createRoomWindow(); else createPetWindow();
+    }
   });
 });
 
@@ -95,3 +121,16 @@ ipcMain.on('bus', (_e, msg) => {
 
 ipcMain.handle('app:quit', () => app.quit());
 ipcMain.on('open-external', (_e, url) => shell.openExternal(url));
+
+ipcMain.on('room:open', () => createRoomWindow());
+
+// 列出 assets/models 下所有 .vrm，让用户丢进去就能用，不必改文件名
+ipcMain.handle('models:list', () => {
+  const fs = require('fs');
+  const dir = path.join(__dirname, '..', 'assets', 'models');
+  try {
+    return fs.readdirSync(dir)
+      .filter(f => f.toLowerCase().endsWith('.vrm'))
+      .map(f => '../assets/models/' + f);
+  } catch (e) { return []; }
+});
