@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld('tz', {
   /** 跨窗口消息总线 */
   post: (msg) => ipcRenderer.send('bus', msg),
   onBus: (cb) => ipcRenderer.on('bus', (_e, msg) => cb(msg)),
-  listModels: () => ipcRenderer.invoke('models:list')
+  listModels: () => ipcRenderer.invoke('models:list'),
+  listScenes: () => ipcRenderer.invoke('scenes:list')
 });

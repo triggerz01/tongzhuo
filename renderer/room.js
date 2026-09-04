@@ -114,14 +114,7 @@ async function loadModel() {
     rest = {};
     for (const k in bones) if (bones[k]) rest[k] = bones[k].rotation.clone();
 
-    // 把相机对准头部，保证不同身高的模型都框得住
-    if (bones.head) {
-      const wp = new THREE.Vector3();
-      bones.head.getWorldPosition(wp);
-      lookTarget.set(0, wp.y - 0.30, 0);
-      camera.position.set(0, wp.y - 0.14, 2.35);
-      camera.lookAt(lookTarget);
-    }
+    frameCamera();
 
     $('hint').style.display = 'none';
     console.log('[room] 已加载', path, '表情:',
@@ -134,6 +127,32 @@ async function loadModel() {
     console.error(e);
     return false;
   }
+}
+
+/* 取景：背景图是坐姿平视拍的，3D 相机也必须水平看（不能俯仰），
+ * 否则透视对不上，角色就会"浮"在背景前面。
+ * HIP_AT 是让角色的胯落在画面纵向的哪个位置——背景图的桌沿大约在 85%，
+ * 让胯压在桌沿上，上半身露出来，就读成"坐在桌前"。 */
+const framing = { hipAt: 0.90, headAt: 0.22, headroom: 0.12 };
+
+function frameCamera() {
+  if (!vrm || !bones || !bones.hips || !bones.head) return;
+  const hip = new THREE.Vector3(), head = new THREE.Vector3();
+  bones.hips.getWorldPosition(hip);
+  bones.head.getWorldPosition(head);
+
+  const topY = head.y + framing.headroom;            // 头顶（头骨往上留一点）
+  const span = topY - hip.y;                          // 要占据画面的那一段身体
+  const frac = framing.hipAt - framing.headAt;        // 这一段占画面高度的比例
+  const H = span / frac;                              // 该深度处的可视高度
+  const d = H / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+
+  // 画面中心（50%）对应的世界高度
+  const centerY = hip.y + (framing.hipAt - 0.5) * H;
+
+  camera.position.set(0, centerY, d);
+  lookTarget.set(0, centerY, 0);                      // 水平视线，无俯仰
+  camera.lookAt(lookTarget);
 }
 
 /** 把 T-pose 掰成"坐在桌前"的静止姿势 */
@@ -306,20 +325,82 @@ function tick() {
 }
 
 /* ---------------- 场景与 UI ---------------- */
-const SCENES = [
+// 没有真实背景图时的兜底（CSS 渐变）
+const FALLBACK = [
   { name: '自习室（夜）', css: 'radial-gradient(120% 80% at 50% 8%, rgba(255,236,200,.20), transparent 60%), linear-gradient(#2b3138 0%, #232a31 46%, #1d232a 46.4%, #171c22 100%)' },
   { name: '图书馆', css: 'radial-gradient(130% 70% at 50% 6%, rgba(214,232,255,.16), transparent 62%), linear-gradient(#333c44 0%, #2a323a 44%, #222931 44.4%, #1a2027 100%)' },
   { name: '咖啡厅', css: 'radial-gradient(120% 80% at 60% 10%, rgba(255,206,150,.22), transparent 58%), linear-gradient(#3a3229 0%, #322a22 45%, #29221c 45.4%, #1f1a15 100%)' },
   { name: '卧室（晚）', css: 'radial-gradient(110% 70% at 40% 12%, rgba(255,190,160,.18), transparent 60%), linear-gradient(#2e2a33 0%, #26232c 46%, #201d26 46.4%, #17151c 100%)' }
 ];
+
+let SCENES = FALLBACK.slice();
 let sceneIdx = 0;
+
+// 合成参数：让 2D 背景和 3D 角色看起来在同一个空间里
+// blur 制造景深、brightness/saturate 压住背景、tint 统一色温
+const comp = { blur: 1.5, brightness: 0.86, saturate: 0.95, tint: 'rgba(18,22,28,.18)' };
+// 前景桌面的上沿在画面纵向的位置。宁可切低一点（数值大），
+// 切高了会把地板也盖到角色腿上，露馅。
+// 每张图的桌沿高度不同，量出来的写进这张表，其余用默认值。
+const FG_TOP_DEFAULT = 0.87;
+const FG_TOP = {
+  '01-自习室夜': 0.85,
+  '03-咖啡馆': 0.88
+};
+const fgTopOf = (name) => FG_TOP[name] ?? FG_TOP_DEFAULT;
+
+function applyComp() {
+  const bg = $('bg');
+  bg.style.filter = `blur(${comp.blur}px) brightness(${comp.brightness}) saturate(${comp.saturate})`;
+  // 轻微放大，避免 blur 在边缘露出空白
+  bg.style.transform = comp.blur > 0 ? `scale(${1 + comp.blur / 120})` : 'none';
+  $('bgTint').style.background = comp.tint;
+}
+
+async function loadScenes() {
+  try {
+    if (window.tz && window.tz.listScenes) {
+      const found = await window.tz.listScenes();
+      if (found && found.length) {
+        SCENES = found.map(f => ({ name: f.name, img: f.url }));
+        return true;
+      }
+    }
+  } catch (e) { /* 用兜底 */ }
+  SCENES = FALLBACK.slice();
+  return false;
+}
+
 function applyScene(i) {
+  if (!SCENES.length) return;
   sceneIdx = (i + SCENES.length) % SCENES.length;
+  const s = SCENES[sceneIdx];
   const bg = $('bg');
   bg.classList.remove('placeholder');
-  bg.style.background = SCENES[sceneIdx].css;
-  bg.style.backgroundSize = 'cover';
-  say('（' + SCENES[sceneIdx].name + '）', 1600);
+  const hasImg = !!s.img;
+  $('desk').style.display = hasImg ? 'none' : '';
+  $('deskItems').style.display = hasImg ? 'none' : '';
+  $('lampGlow').style.display = hasImg ? 'none' : '';
+
+  const fg = $('fg');
+  if (hasImg) {
+    // 同一张图、同样的 cover 定位 → 前景层和背景层天然对齐
+    fg.style.display = '';
+    fg.style.backgroundImage = `url("${s.img}")`;
+    fg.style.clipPath = `inset(${(fgTopOf(s.name) * 100).toFixed(1)}% 0 0 0)`;
+    fg.style.filter = `brightness(${comp.brightness}) saturate(${comp.saturate})`;
+  } else {
+    fg.style.display = 'none';
+  }
+
+  if (hasImg) {
+    bg.style.background = `#12161a center/cover no-repeat url("${s.img}")`;
+  } else {
+    bg.style.background = s.css;
+    bg.style.backgroundSize = 'cover';
+  }
+  applyComp();
+  say('（' + s.name + '）', 1600);
 }
 
 let lineTimer = null;
@@ -364,8 +445,11 @@ $('btnPose').addEventListener('click', () => {
 
 /* ---------------- 启动 ---------------- */
 resize();
-applyScene(0);
 tick();
+loadScenes().then((real) => {
+  applyScene(0);
+  if (!real) console.log('[room] assets/scenes 里还没有背景图，先用 CSS 兜底');
+});
 loadModel();
 
 // 供 CDP 调试与外部驱动
@@ -375,6 +459,12 @@ window.TZRoom = {
   actions: ACTIONS.map(a => a.name),
   say,
   scene: applyScene,
+  scenes: () => SCENES.map(s => s.name),
+  reloadScenes: () => loadScenes().then(() => applyScene(0)),
+  // 实时调合成参数，调好了我把数值固化进代码
+  comp: (patch) => { Object.assign(comp, patch || {}); applyComp(); return { ...comp }; },
+  frame: (patch) => { Object.assign(framing, patch || {}); frameCamera(); return { ...framing }; },
+  fgTop: (v) => { $('fg').style.clipPath = `inset(${(v*100).toFixed(1)}% 0 0 0)`; return v; },
   info: () => ({
     loaded: !!vrm,
     expressions: vrm && vrm.expressionManager ? Object.keys(vrm.expressionManager.expressionMap || {}) : [],

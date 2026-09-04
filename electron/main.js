@@ -134,3 +134,15 @@ ipcMain.handle('models:list', () => {
       .map(f => '../assets/models/' + f);
   } catch (e) { return []; }
 });
+
+// 列出 assets/scenes 下的背景图，丢进去即可被识别
+ipcMain.handle('scenes:list', () => {
+  const fs = require('fs');
+  const dir = path.join(__dirname, '..', 'assets', 'scenes');
+  try {
+    return fs.readdirSync(dir)
+      .filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f))
+      .sort()
+      .map(f => ({ name: f.replace(/\.[^.]+$/, ''), url: '../assets/scenes/' + f }));
+  } catch (e) { return []; }
+});

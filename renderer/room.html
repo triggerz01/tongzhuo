@@ -17,10 +17,14 @@
       radial-gradient(120% 80% at 50% 8%, rgba(255,236,200,.20), transparent 60%),
       linear-gradient(#2b3138 0%, #232a31 46%, #1d232a 46.4%, #171c22 100%);
   }
+  #bgTint{position:absolute;inset:0;pointer-events:none;transition:background .4s}
   #bgGrain{position:absolute;inset:0;opacity:.05;pointer-events:none;
     background-image:radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
     background-size:3px 3px}
   #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+  /* 前景桌面：同一张图的底部，盖在角色之上，制造"人在桌子后面"的遮挡 */
+  #fg{position:absolute;inset:0;pointer-events:none;background-size:cover;
+      background-position:center;display:none}
   /* 前景桌面：挡住腿，站姿也能读成"坐在桌前" */
   #desk{position:absolute;left:0;right:0;bottom:0;height:34%;
     background:linear-gradient(#3a3229 0%, #2e2822 14%, #241f1a 100%);
@@ -70,8 +74,10 @@
 
 <div id="scene">
   <div id="bg" class="placeholder"></div>
+  <div id="bgTint"></div>
   <div id="bgGrain"></div>
   <canvas id="cv"></canvas>
+  <div id="fg"></div>
   <div id="desk"></div>
   <div id="lampGlow"></div>
   <svg id="deskItems" viewBox="0 0 1000 300" preserveAspectRatio="xMidYMax meet">
