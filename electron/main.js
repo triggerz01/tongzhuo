@@ -1,6 +1,8 @@
 'use strict';
 const { app, BrowserWindow, ipcMain, screen, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { spawn } = require('child_process');
 
 let petWin = null;
 let panelWin = null;
@@ -158,3 +160,98 @@ ipcMain.handle('anims:list', () => {
       .map(f => ({ name: f.replace(/\.fbx$/i, ''), url: '../assets/animations/' + encodeURIComponent(f) }));
   } catch (e) { return []; }
 });
+
+/* ---------------- 感知层子进程 ----------------
+ * 用户不该为了用摄像头去手动开一个 Python 进程。
+ * Electron 自己把它拉起来、自己收尸；界面上只留开关和重连。
+ */
+let percProc = null;
+let percLog = [];
+
+function perceptionPython() {
+  const win = process.platform === 'win32';
+  const venv = path.join(__dirname, '..', 'perception', '.venv',
+                         win ? 'Scripts' : 'bin', win ? 'python.exe' : 'python');
+  if (fs.existsSync(venv)) return { path: venv, kind: 'venv' };
+  return { path: win ? 'python' : 'python3', kind: 'system' };
+}
+
+function perceptionStatus() {
+  return {
+    running: !!percProc,
+    pid: percProc ? percProc.pid : null,
+    python: perceptionPython(),
+    log: percLog.slice(-12)
+  };
+}
+
+function notifyPerception() {
+  const msg = { type: 'perception-proc', ...perceptionStatus() };
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send('bus', msg);
+  }
+}
+
+function startPerception() {
+  if (percProc) return perceptionStatus();
+  const py = perceptionPython();
+  const cwd = path.join(__dirname, '..', 'perception');
+  if (!fs.existsSync(path.join(cwd, 'server.py'))) {
+    percLog.push('找不到 perception/server.py');
+    notifyPerception();
+    return perceptionStatus();
+  }
+  let proc;
+  try {
+    proc = spawn(py.path, ['server.py'], { cwd, windowsHide: true });
+    percProc = proc;
+  } catch (e) {
+    percLog.push('启动失败：' + e.message);
+    percProc = null;
+    notifyPerception();
+    return perceptionStatus();
+  }
+  percLog.push(`已启动（${py.kind}）pid=${proc.pid}`);
+
+  const onOut = (d) => {
+    const t = String(d).trim();
+    if (t) percLog.push(t.replace(/\s+/g, ' ').slice(-160));
+    if (percLog.length > 60) percLog = percLog.slice(-40);
+  };
+  proc.stdout.on('data', onOut);
+  proc.stderr.on('data', onOut);
+  // 旧进程的 exit 是异步来的，可能晚于新进程启动。不判断一下就会把
+  // 新进程的引用清掉——重启后显示"感知层未启动"就是这么来的。
+  proc.on('exit', (code) => {
+    if (percProc !== proc) return;
+    percLog.push('感知层退出，code=' + code);
+    percProc = null;
+    notifyPerception();
+  });
+  proc.on('error', (e) => {
+    if (percProc !== proc) return;
+    percLog.push('感知层出错：' + e.message);
+    percProc = null;
+    notifyPerception();
+  });
+
+  notifyPerception();
+  return perceptionStatus();
+}
+
+function stopPerception() {
+  if (!percProc) return perceptionStatus();
+  try { percProc.kill(); } catch (e) { /* 已经没了 */ }
+  percProc = null;
+  percLog.push('已停止');
+  notifyPerception();
+  return perceptionStatus();
+}
+
+ipcMain.handle('perception:start', () => startPerception());
+ipcMain.handle('perception:stop', () => stopPerception());
+ipcMain.handle('perception:restart', () => { stopPerception(); return startPerception(); });
+ipcMain.handle('perception:status', () => perceptionStatus());
+
+app.on('before-quit', stopPerception);
+app.on('will-quit', stopPerception);

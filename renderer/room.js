@@ -432,6 +432,8 @@ const WS_URL = 'ws://127.0.0.1:8765';
 let ws = null, wsTimer = null;
 let pipOn = false;
 let lastBlob = null;
+let camOn = false;          // 用户是否要求开摄像头（和"连上了没有"是两回事）
+let procRunning = false;    // 感知层子进程在不在
 
 const LABEL_CN = {
   focus: '专注', away: '离席', backturn: '背对镜头', phone: '玩手机',
@@ -448,17 +450,15 @@ function connectPerception() {
   ws.binaryType = 'blob';
 
   ws.onopen = () => {
-    $('camDot2').classList.add('on');
-    $('camText').textContent = '摄像头已连接';
-    wsSend({ cmd: 'start' });
-    if (pipOn) wsSend({ cmd: 'preview', on: true });
     console.log('[room] 感知层已连接');
+    if (camOn) wsSend({ cmd: 'start' });
+    if (pipOn) wsSend({ cmd: 'preview', on: true });
+    paintCam();
   };
 
   ws.onclose = () => {
-    $('camDot2').classList.remove('on');
-    $('camText').textContent = '摄像头未连接';
     $('pipLabel').textContent = '连接已断开';
+    paintCam();
     retryWs();
   };
   ws.onerror = () => { try { ws.close(); } catch (e) {} };
@@ -493,15 +493,13 @@ let lastLabel = null;
 function onPerception(m) {
   if (m.type === 'hello') {
     console.log('[room] 感知层握手', m);
-    $('camText').textContent = m.phone ? '摄像头已连接' : '摄像头已连接（手机检测未启用）';
+    if (!m.phone) console.warn('[room] 手机检测未启用，检查 perception/models/');
+    paintCam();
   }
   if (m.type === 'state') {
     const cn = LABEL_CN[m.label] || m.label;
     $('pipLabel').textContent = `${cn} · ${m.duration.toFixed(0)}s`;
-    if (m.label !== lastLabel) {
-      lastLabel = m.label;
-      $('camText').textContent = '识别：' + cn;
-    }
+    if (m.label !== lastLabel) { lastLabel = m.label; paintCam(); }
     // 联动先只做最轻的一层：认出你走了，角色抬头看一眼
     if (m.trigger && m.label === 'away') play('lookAway');
   }
@@ -535,6 +533,88 @@ function play(name) {
   if (d) idle.action = { def: d, t: 0 };
 }
 
+
+
+/* ---------------- 摄像头开关与重连 ---------------- */
+/* 状态有三层，界面要说清楚是哪一层出问题：
+ *   1. 感知层进程在不在（Electron 自己拉起来的）
+ *   2. WebSocket 通没通
+ *   3. 摄像头是不是被要求开着
+ * 之前只显示"摄像头未连接"，看不出到底卡在哪一层。 */
+function camState() {
+  const wsOk = ws && ws.readyState === 1;
+  if (!procRunning) return { dot: false, text: '感知层未启动', btn: '启动' };
+  if (!wsOk) return { dot: false, text: '连接中…', btn: '启动' };
+  if (!camOn) return { dot: false, text: '摄像头已就绪（未开启）', btn: '开启' };
+  return { dot: true, text: lastLabel ? ('识别：' + (LABEL_CN[lastLabel] || lastLabel)) : '摄像头已开启',
+           btn: '关闭' };
+}
+
+function paintCam() {
+  const st = camState();
+  $('camDot2').classList.toggle('on', st.dot);
+  $('camText').textContent = st.text;
+  const b = $('btnCam');
+  b.textContent = st.btn;
+  b.classList.toggle('on', camOn && st.dot);
+}
+
+// 主进程会广播感知层子进程的生死，收一下
+if (window.tz && window.tz.onBus) {
+  window.tz.onBus((msg) => {
+    if (!msg || msg.type !== 'perception-proc') return;
+    procRunning = !!msg.running;
+    paintCam();
+    if (msg.log && msg.log.length) console.log('[perception]', msg.log[msg.log.length - 1]);
+  });
+}
+
+async function refreshProc() {
+  if (!(window.tz && window.tz.perception)) return;
+  try {
+    const s = await window.tz.perception.status();
+    procRunning = !!s.running;
+  } catch (e) { procRunning = false; }
+  paintCam();
+}
+
+async function toggleCam() {
+  const btn = $('btnCam');
+  btn.disabled = true;
+  try {
+    if (!procRunning) {
+      $('camText').textContent = '正在启动感知层…';
+      await window.tz.perception.start();
+      await refreshProc();
+      setTimeout(connectPerception, 1200);   // 给服务端一点起身时间
+      camOn = true;
+    } else if (!camOn) {
+      camOn = true;
+      if (!wsSend({ cmd: 'start' })) connectPerception();
+    } else {
+      camOn = false;
+      wsSend({ cmd: 'pause' });              // 真正释放摄像头，不是软暂停
+      if (pipOn) setPip(false);
+    }
+  } finally {
+    btn.disabled = false;
+    paintCam();
+  }
+}
+
+async function reloadCam() {
+  const btn = $('btnCamReload');
+  btn.disabled = true;
+  $('camText').textContent = '正在重启感知层…';
+  try {
+    if (ws) { try { ws.close(); } catch (e) {} }
+    await window.tz.perception.restart();
+    await refreshProc();
+    setTimeout(() => { connectPerception(); }, 1400);
+  } finally {
+    setTimeout(() => { btn.disabled = false; paintCam(); }, 1600);
+  }
+}
 
 /* ---------------- 摄像头校准 ---------------- */
 /* 轮廓线不是相机控制，是给人看的定位参考——摄像头不支持变焦
@@ -734,6 +814,8 @@ $('btnStart').addEventListener('click', startSession);
 $('btnStop').addEventListener('click', stopSession);
 $('btnReload').addEventListener('click', () => loadModel());
 $('btnScene').addEventListener('click', () => applyScene(sceneIdx + 1));
+$('btnCam').addEventListener('click', toggleCam);
+$('btnCamReload').addEventListener('click', reloadCam);
 $('btnCalib').addEventListener('click', openCalib);
 $('calibCancel').addEventListener('click', closeCalib);
 $('calibGo').addEventListener('click', startCalib);
@@ -759,7 +841,17 @@ loadScenes().then((real) => {
   if (!real) console.log('[room] assets/scenes 里还没有背景图，先用 CSS 兜底');
 });
 loadModel();
-connectPerception();
+
+// 用户不该为了用摄像头去手动开一个 Python 进程 —— 启动时自己拉起来。
+// 但摄像头本身默认不开，等用户点「开启」（隐私上的默认值）。
+(async () => {
+  if (window.tz && window.tz.perception) {
+    await window.tz.perception.start();
+    await refreshProc();
+  }
+  setTimeout(connectPerception, 1200);
+  paintCam();
+})();
 
 // 供 CDP 调试与外部驱动
 window.TZRoom = {

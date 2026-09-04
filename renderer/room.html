@@ -41,6 +41,13 @@
   .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:11px;
     background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
   .badge b{color:#fff;font-weight:600}
+  .camctl{gap:8px}
+  .camctl button{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+    color:#cfd6dc;font-family:var(--mono);font-size:10.5px;padding:2px 8px;
+    border-radius:9px;cursor:pointer;line-height:1.5}
+  .camctl button:hover{background:rgba(255,255,255,.18);color:#fff}
+  .camctl button.on{background:#9E1B25;border-color:#9E1B25;color:#fff}
+  .camctl button:disabled{opacity:.45;cursor:default}
   .dot2{width:7px;height:7px;border-radius:50%;background:#6b747c}
   .dot2.on{background:#E4737C;box-shadow:0 0 0 3px rgba(228,115,124,.20)}
 
@@ -154,7 +161,11 @@
   </svg>
 
   <div class="topbar">
-    <span class="badge"><span id="camDot2" class="dot2"></span><span id="camText">摄像头未连接</span></span>
+    <span class="badge camctl">
+      <span id="camDot2" class="dot2"></span><span id="camText">摄像头未连接</span>
+      <button id="btnCam" title="开启 / 关闭摄像头">开启</button>
+      <button id="btnCamReload" title="重启感知层并重连">重连</button>
+    </span>
     <span class="badge">状态 <b id="stateText">未开始</b></span>
     <div class="grow">
       <span class="badge">专注 <b id="focusText">0</b> 分钟</span>
