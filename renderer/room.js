@@ -510,13 +510,8 @@ function onPerception(m) {
   if (m.type === 'state') {
     const cn = LABEL_CN[m.label] || m.label;
     $('pipLabel').textContent = `${cn} · ${m.duration.toFixed(0)}s`;
-    if (m.label !== lastLabel) {
-      const prev = lastLabel;
-      lastLabel = m.label;
-      paintCam();
-      reactTo(m.label, prev);
-    }
-    updateLongReactions(m.label);
+    if (m.label !== lastLabel) { lastLabel = m.label; paintCam(); }
+    onState(m.label, m.duration || 0);
     // 联动先只做最轻的一层：认出你走了，角色抬头看一眼
     if (m.trigger && m.label === 'away') play('lookAway');
   }
@@ -572,51 +567,85 @@ function react(name, line) {
   return true;
 }
 
-/** 摄像头判定 → 角色反应 */
-function reactTo(label, prev) {
-  if (!face) return;
-  // 从"不在"回到"在"：先高兴一下，这个反应比什么都自然
-  if ((prev === 'away' || prev === 'backturn') && label === 'focus') {
-    react('welcome', '你回来啦。');
-    return;
-  }
-  switch (label) {
-    case 'focus':    react('calm'); break;
-    case 'phone':    react('disappoint'); break;
-    case 'drowsy':   react('sleepy'); break;
-    case 'covered':  react('puzzled'); break;
-    case 'away':     face.clearEmotion(); break;   // 没人看，不做表情
-    case 'backturn': react('calm'); break;
-  }
+/* ---------------- 摄像头联动 ----------------
+ * 原则：状态一变就反应会显得神经质。除了"遮挡镜头"这种明确信号，
+ * 其余都要等持续够久才触发 —— 阈值全在 LINK 里，方便调。
+ */
+const LINK = {
+  focusPraiseMin: 1,      // 连续专注满这么久 → 开心夸你（之后每隔同样时间再夸一次）
+  phoneScoldMin: 1,       // 玩手机满这么久 → 失望皱眉
+  awayLonelyMin: 2,       // 离席满这么久 → 难过
+  welcomeAfterAwayMin: 2, // 离席至少这么久，回来才值得说"你回来了"
+  reactCooldownSec: 45,   // 任意两次大反应之间的最小间隔
+  cuteGapMin: [4, 9]      // 待机小插曲（犯困/疑惑）的随机间隔
+};
+
+// 当前这一段连续状态
+let epLabel = null, epFired = {}, epNextAt = {};
+let lastAwaySec = 0;          // 上一段离席持续了多久
+let lastReactAt = 0;
+let cuteAt = 0;               // 下一次待机小插曲的时间
+
+function canReact() {
+  return Date.now() - lastReactAt > LINK.reactCooldownSec * 1000;
+}
+function fire(name, line) {
+  if (!canReact()) return false;
+  lastReactAt = Date.now();
+  react(name, line);
+  return true;
 }
 
-/* 长时间累积的反应：这两个是"看了很久才有的情绪"，
- * 和上面那种"状态一变就反应"不是一回事。 */
-let focusRunSince = 0, awayRunSince = 0, lastLongReact = 0;
-const LONG_FOCUS_MIN = 15;      // 专注满这么久 → 夸你
-const LONG_AWAY_MIN = 5;        // 离开这么久 → 失落
-
-function updateLongReactions(label) {
-  const now = Date.now();
-  if (now - lastLongReact < 4 * 60000) return;    // 别太频繁
-
-  if (label === 'focus') {
-    awayRunSince = 0;
-    if (!focusRunSince) focusRunSince = now;
-    else if (now - focusRunSince > LONG_FOCUS_MIN * 60000) {
-      focusRunSince = now; lastLongReact = now;
-      react('praise', '你已经坐了很久了，厉害。');
+/** 每条 state 消息都会走这里。duration 由感知层给，是当前标签的连续秒数。 */
+function onState(label, duration) {
+  // 换段了：结算上一段
+  if (label !== epLabel) {
+    if (epLabel === 'away') lastAwaySec = epDur;
+    // 离席够久再回到专注，才值得说"你回来了"
+    if (label === 'focus' && lastAwaySec >= LINK.welcomeAfterAwayMin * 60) {
+      lastAwaySec = 0;
+      fire('welcome');
+    } else if (label === 'covered') {
+      fire('puzzled');            // 遮挡是明确信号，不用等
+    } else if (label === 'focus') {
+      if (face) face.clearEmotion();   // 回到待机，表情交给微表情系统
     }
-  } else if (label === 'away') {
-    focusRunSince = 0;
-    if (!awayRunSince) awayRunSince = now;
-    else if (now - awayRunSince > LONG_AWAY_MIN * 60000) {
-      awayRunSince = now; lastLongReact = now;
-      react('lonely');
-    }
-  } else {
-    focusRunSince = 0;
+    epLabel = label;
+    epFired = {};
+    epNextAt = {};
+    scheduleCute();
   }
+  epDur = duration;
+
+  // 持续够久才触发的那几条
+  const min = (m) => m * 60;
+  if (label === 'focus' && duration >= (epNextAt.praise ?? min(LINK.focusPraiseMin))) {
+    if (fire('praise')) epNextAt.praise = duration + min(LINK.focusPraiseMin);
+  }
+  if (label === 'phone' && duration >= (epNextAt.phone ?? min(LINK.phoneScoldMin))) {
+    if (fire('disappoint')) epNextAt.phone = duration + min(LINK.phoneScoldMin);
+  }
+  if (label === 'away' && duration >= (epNextAt.away ?? min(LINK.awayLonelyMin))) {
+    if (fire('lonely')) epNextAt.away = duration + min(LINK.awayLonelyMin) * 2;
+  }
+  if (label === 'drowsy' && !epFired.drowsy) {
+    epFired.drowsy = true;
+    fire('sleepy');
+  }
+
+  // 待机小插曲：专注时偶尔犯个困、疑惑一下，显得像个人而不是监控探头
+  if (label === 'focus' && Date.now() > cuteAt && canReact()) {
+    scheduleCute();
+    const pick = Math.random() < 0.55 ? 'sleepy' : 'puzzled';
+    lastReactAt = Date.now();
+    react(pick, pick === 'sleepy' ? '' : '');   // 不说话，只做表情和小动作
+  }
+}
+let epDur = 0;
+
+function scheduleCute() {
+  const [a, b] = LINK.cuteGapMin;
+  cuteAt = Date.now() + (a + Math.random() * (b - a)) * 60000;
 }
 
 function setPip(on) {
@@ -983,7 +1012,11 @@ window.TZRoom = {
   emote: (n, lv, hold) => face && face.play(n, lv ?? 0.8, hold ?? 3),
   talk: (sec) => face && face.talk(sec ?? 2),
   yawn: () => face && face.yawn(),
-  react: reactTo,
+  onState,
+  link: LINK,
+  linkState: () => ({ label: epLabel, dur: epDur, fired: epFired, next: epNextAt,
+                      lastAwaySec, cooldownLeft: Math.max(0,
+                        LINK.reactCooldownSec * 1000 - (Date.now() - lastReactAt)) / 1000 }),
   reactAs: react,
   reactions: () => Object.keys(REACTIONS),
   clipFor,
