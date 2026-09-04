@@ -2,10 +2,10 @@
 # 注意：mediapipe / ultralytics 目前不支持 Python 3.14，请用 Python 3.12。
 
 opencv-python>=4.9.0
-# 必须锁在 1.0 以下：mediapipe 1.0 移除了 mp.solutions，
-# 而新的 Tasks API 需要额外下载 .task 模型文件（Google CDN，国内大概率不通）。
-# 0.10.x 把模型打包在 wheel 里，完全离线可用。
-mediapipe>=0.10.14,<1.0
+# 用的是 Tasks API（mediapipe.tasks.python.vision.FaceLandmarker）。
+# 旧的 mp.solutions 已经从 mediapipe 里删掉了，0.10.35 和 1.x 都没有，别再找它。
+# Tasks API 需要的模型文件已放在 perception/models/，随仓库分发，不用联网下。
+mediapipe>=0.10.14
 numpy>=1.26.0
 websockets>=12.0
 
