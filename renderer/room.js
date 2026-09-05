@@ -621,6 +621,42 @@ function react(name, silent) {
   return true;
 }
 
+/* ---------------- 静态姿势 ----------------
+ * VRoid Studio 的 .vroidpose 是"每根人形骨骼一个四元数"，
+ * 转成 JSON 就能直接怼到 VRM 的 normalized 骨骼上 —— 它是姿势不是动画，
+ * 但做"叉腰站着不动"这种待机正好够用。
+ *
+ * VRoid 是 Unity 的左手坐标系，three.js 是右手，四元数要转一下。
+ * 到底是哪一种转法只能试，所以 conv 留成参数。
+ */
+// 试出来是 flipX：(x, -y, -z, w)。Unity 左手系转 three.js 右手系的标准做法之一。
+// 另外三种留着，以后素材来源变了可以再试。
+const POSE_CONV = {
+  flipX: (q) => [ q[0], -q[1], -q[2],  q[3]],   // ← 对的那个
+  raw:   (q) => q,
+  flipZ: (q) => [-q[0], -q[1],  q[2],  q[3]],
+  flipW: (q) => [-q[0],  q[1],  q[2], -q[3]]
+};
+
+async function applyPose(name, conv) {
+  if (!vrm || !vrm.humanoid) return '模型还没加载';
+  let data;
+  try {
+    const r = await fetch('../assets/poses/' + name + '.json');
+    data = await r.json();
+  } catch (e) { return '读不到 ' + name + '.json'; }
+  const f = POSE_CONV[conv || 'flipX'] || POSE_CONV.flipX;
+  let hit = 0;
+  for (const bone in data) {
+    const node = vrm.humanoid.getNormalizedBoneNode(bone);
+    if (!node) continue;
+    const q = f(data[bone]);
+    node.quaternion.set(q[0], q[1], q[2], q[3]);
+    hit++;
+  }
+  return '套上 ' + hit + ' 根骨骼（' + (conv || 'flipX') + '）';
+}
+
 /* ---------------- 对外事件 ----------------
  * 给剧情模块（story.js）用。它只订阅事件、只调 tell()，不改这个文件 ——
  * 两个人同时开发时，谁也别去动对方正在改的文件，这是唯一有效的办法。
@@ -1329,6 +1365,7 @@ window.TZRoom = {
                         LINK.reactCooldownSec * 1000 - (Date.now() - lastReactAt)) / 1000 }),
   reactAs: react,
   shots,
+  pose: applyPose,
   on,          // 给 story.js 订阅事件
   tell,        // 给 story.js 说自定义台词
   voice: {
