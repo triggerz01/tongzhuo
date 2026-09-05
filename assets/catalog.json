@@ -32,6 +32,61 @@
     "available": false
   },
   {
+    "id": "item_lamp",
+    "name": "暖光台灯",
+    "type": "item",
+    "price": 120,
+    "description": "给夜里的桌子添一盏不刺眼的灯。",
+    "preview": "assets/items/lamp.svg",
+    "asset": "assets/items/lamp.svg",
+    "deskWidth": 11,
+    "available": true
+  },
+  {
+    "id": "item_plant",
+    "name": "小绿植",
+    "type": "item",
+    "price": 80,
+    "description": "不用怎么管，放着就行。",
+    "preview": "assets/items/plant.svg",
+    "asset": "assets/items/plant.svg",
+    "deskWidth": 9,
+    "available": true
+  },
+  {
+    "id": "item_mug",
+    "name": "马克杯",
+    "type": "item",
+    "price": 60,
+    "description": "半杯凉掉的咖啡。",
+    "preview": "assets/items/mug.svg",
+    "asset": "assets/items/mug.svg",
+    "deskWidth": 7,
+    "available": true
+  },
+  {
+    "id": "item_books",
+    "name": "一摞书",
+    "type": "item",
+    "price": 100,
+    "description": "翻过的和没翻过的，摞在一起。",
+    "preview": "assets/items/books.svg",
+    "asset": "assets/items/books.svg",
+    "deskWidth": 12,
+    "available": true
+  },
+  {
+    "id": "item_cat",
+    "name": "趴着的猫",
+    "type": "item",
+    "price": 260,
+    "description": "它不学习，但它也不走。",
+    "preview": "assets/items/cat.svg",
+    "asset": "assets/items/cat.svg",
+    "deskWidth": 15,
+    "available": true
+  },
+  {
     "id": "scene_study_night",
     "name": "自习室（夜）",
     "type": "scene",

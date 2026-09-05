@@ -13,6 +13,7 @@ import { initRecords, recordStore } from './records.js';
 import { initSettings } from './settings.js';
 import { initSettle, showSettle } from './settle.js';
 import { initStore, paintBalance } from './store.js';
+import { initDesk, renderDesk } from './desk.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -186,6 +187,7 @@ function init() {
   initSettle(() => { show('home'); paintBalance(); });
   window.__settle = showSettle;
   initStore(() => show('home'));
+  initDesk(() => show('home'));
   window.TZRoom.onSessionEnd(finish);
   setInterval(() => { if (view === 'setup') paintCamStatus(); }, 1500);
   show('home');

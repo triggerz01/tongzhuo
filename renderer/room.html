@@ -366,6 +366,90 @@
   #homePoints{font-family:Impact,monospace;font-size:20px;color:#ffd23f;margin:0 4px;
     text-shadow:2px 2px 0 rgba(0,0,0,.5)}
 
+  /* ---------------- 桌面摆件 ----------------
+     贴在 #fg（桌面）之上。锚点是底边中点 —— 物体和桌面接触的那一点。 */
+  #deskLayer,#deskEditLayer{position:absolute;inset:0;pointer-events:none}
+  .deskItem{position:absolute;transform:translateX(-50%);
+    filter:drop-shadow(0 4px 6px rgba(0,0,0,.55))}
+  .deskItem.pickable{pointer-events:auto;cursor:pointer;transition:transform .12s}
+  .deskItem.pickable:hover{transform:translateX(-50%) translateY(-4px)}
+
+  /* ---------------- 桌面布置页 ----------------
+     不盖住桌子本身：上半屏是深色面板，桌沿以下透出真正的桌面。
+     你是在真的那张桌子上摆，不是在预览图里摆。 */
+  #deskEdit{position:absolute;inset:0;z-index:34;display:none}
+  #deskEdit.on{display:block}
+  /* 布置的时候要看见真的那张桌子：主界面视频和遮罩都让开，
+     人物压暗留个影 —— 她也在那儿，但别挡着你摆东西。 */
+  body.deskedit #homeVid.ready{display:none}
+  body.deskedit .veil{opacity:0;pointer-events:none}
+  body.deskedit #cv{opacity:.22;transition:opacity .3s}
+  #deskPanel{position:absolute;left:0;right:0;top:0;height:72%;
+    background:
+      repeating-linear-gradient(115deg, rgba(158,27,37,.10) 0 3px, transparent 3px 58px),
+      linear-gradient(rgba(8,10,13,.90) 0%, rgba(8,10,13,.72) 78%, rgba(8,10,13,.30) 100%);
+    display:flex;flex-direction:column;padding:20px 24px 0;overflow:hidden}
+  #deskPanel h3{display:inline-block;align-self:flex-start;background:#9E1B25;color:#fff;
+    padding:7px 20px 8px;transform:skewX(-9deg);
+    clip-path:polygon(0 0,100% 0,96% 100%,2% 92%);
+    font-family:Impact,var(--sans);font-size:22px;letter-spacing:.05em;font-weight:400;
+    text-shadow:2px 2px 0 rgba(0,0,0,.45);margin:0}
+  #deskPanel h3 span{display:inline-block;transform:skewX(9deg)}
+  #deskHint{margin:9px 0 12px;font-size:12.5px;color:#8d97a1;line-height:1.7}
+  #deskHint b{color:#ffd23f}
+
+  #deskTray{display:flex;gap:10px;flex-wrap:wrap;align-content:flex-start;overflow-y:auto;
+    flex:1;padding-bottom:8px}
+  #deskTray::-webkit-scrollbar{width:6px}
+  #deskTray::-webkit-scrollbar-track{background:#0b0b0d}
+  #deskTray::-webkit-scrollbar-thumb{background:#9E1B25}
+  #deskTray .empty{color:#75808a;font-size:12.5px;line-height:1.9}
+  .trayItem{width:92px;padding:8px 6px 7px;background:#141418;border:1px solid #2b2b31;
+    cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;
+    transform:skewX(-6deg);box-shadow:3px 3px 0 rgba(0,0,0,.5)}
+  .trayItem > *{transform:skewX(6deg)}
+  .trayItem img{width:52px;height:52px;object-fit:contain}
+  .trayItem span{font-size:11px;color:#a9b2ba}
+  .trayItem:hover{border-color:#46525d}
+  .trayItem.on{border-color:#9E1B25;background:#20161a;box-shadow:4px 4px 0 #9E1B25}
+  .trayItem.on span{color:#fff}
+
+  #deskBar{display:flex;align-items:center;gap:10px;padding:10px 0 14px}
+  #deskBar .n{font-size:12px;color:#8d97a1}
+  #deskBar .n b{font-family:Impact,monospace;font-size:18px;color:#fff;margin:0 3px}
+  #deskBar .grow{margin-left:auto;display:flex;gap:9px}
+  #deskBar button{padding:7px 16px;border:0;cursor:pointer;font-family:var(--sans);
+    font-size:12.5px;transform:skewX(-9deg);background:#22242a;color:#c9d1d8}
+  #deskBar button:hover{background:#2c2f36;color:#fff}
+  #deskBar button.save{background:#9E1B25;color:#fff}
+  #deskBar button.save.dirty::after{content:' •';color:#ffd23f}
+
+  /* 格子只在桌面那一段 */
+  #deskGrid{position:absolute;inset:0;pointer-events:none}
+  .deskCell{position:absolute;background:transparent;border:1px dashed rgba(255,255,255,.16);
+    padding:0;cursor:default;pointer-events:none}
+  #deskGrid.picking .deskCell{pointer-events:auto;cursor:pointer;
+    border-color:rgba(255,210,63,.5);background:rgba(255,210,63,.06)}
+  #deskGrid.picking .deskCell:hover{background:rgba(255,210,63,.22);
+    border-color:#ffd23f}
+
+  /* 未保存就退出 */
+  #deskAsk{position:absolute;inset:0;z-index:40;display:flex;align-items:center;
+    justify-content:center;background:rgba(6,6,8,.72);opacity:0;pointer-events:none;
+    transition:opacity .18s}
+  #deskAsk.on{opacity:1;pointer-events:auto}
+  #deskAsk .card{width:min(400px,86%);background:#131315;padding:22px 24px 24px;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);
+    box-shadow:8px 8px 0 rgba(0,0,0,.55);transform:skewX(-2deg)}
+  #deskAsk .card > *{transform:skewX(2deg)}
+  #deskAsk h3{margin:0 0 8px;font-family:Impact,var(--sans);font-size:20px;color:#fff;
+    font-weight:400;letter-spacing:.04em}
+  #deskAsk p{margin:0;font-size:12.5px;color:#8d97a1;line-height:1.8}
+  #deskAsk .acts{display:flex;justify-content:flex-end;gap:9px;margin-top:18px;flex-wrap:wrap}
+  #deskAsk .acts button{padding:7px 16px;border:0;cursor:pointer;font-family:var(--sans);
+    font-size:12.5px;transform:skewX(-9deg);background:#22242a;color:#c9d1d8}
+  #deskAsk .acts button.ok{background:#9E1B25;color:#fff}
+
   #modeList{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
   .modeCard{position:relative;padding:16px 18px;border:1px solid #2b333c;
     background:rgba(20,25,31,.72);cursor:pointer;text-align:left;font-family:var(--sans)}
@@ -748,6 +832,7 @@
   <canvas id="cv"></canvas>
   <div id="deskAO"></div>
   <div id="fg"></div>
+  <div id="deskLayer"></div>
   <div id="desk"></div>
   <div id="lampGlow"></div>
   <svg id="deskItems" viewBox="0 0 1000 300" preserveAspectRatio="xMidYMax meet">
@@ -799,6 +884,7 @@
       <button id="btnStart" class="bigBtn"><span>开始自习</span></button>
       <button id="btnRecords" class="ghostBtn"><span>学习记录</span></button>
       <button id="btnStore" class="ghostBtn"><span>专注星商店</span></button>
+      <button id="btnDesk" class="ghostBtn"><span>布置桌面</span></button>
       <button id="btnSettings" class="ghostBtn"><span>设置</span></button>
     </div>
     <div id="homePointsRow">拥有 <b id="homePoints">0</b> 点专注星</div>
@@ -808,6 +894,37 @@
         <span>专注 <b id="sumMinutes">0</b> 分钟</span>
         <span>离席 <b id="sumAway">0</b> 次</span>
         <span>走神 <b id="sumDistract">0</b> 次</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="deskEdit">
+    <div id="deskGrid"></div>
+    <div id="deskEditLayer"></div>
+    <div id="deskPanel">
+      <h3><span>布置桌面</span></h3>
+      <p id="deskHint">先在下面选一件，再点桌上的<b>格子</b>放下去。<br>
+        点桌上已经放好的东西可以把它拿走。摆好记得<b>保存</b>。</p>
+      <div id="deskTray"></div>
+      <div id="deskBar">
+        <span class="n">桌上 <b id="deskCount">0</b> 件</span>
+        <span class="grow">
+          <button id="btnDeskClear">一键清空</button>
+          <button id="btnDeskBack">返回</button>
+          <button id="btnDeskSave" class="save">保存</button>
+        </span>
+      </div>
+    </div>
+
+    <div id="deskAsk">
+      <div class="card">
+        <h3>还没保存</h3>
+        <p>桌上的摆法改过了，但没有保存。直接退出的话这次的改动就没了。</p>
+        <div class="acts">
+          <button id="deskAskStay">继续摆</button>
+          <button id="deskAskDrop">不保存</button>
+          <button id="deskAskSave" class="ok">保存并退出</button>
+        </div>
       </div>
     </div>
   </div>
