@@ -6,9 +6,11 @@
  * 摆上去会被桌面盖住；就算硬渲染到上层，也要跟一张照片对透视和光线，
  * 那是费力不讨好的事。
  *
- * 网格是有透视的：越靠里的一排，格子越矮、越窄、物件也越小。
- * 摆件的锚点是"底边中点"——物体和桌面接触的那一点，
- * 这样换一排就只改缩放，不用重新对位。
+ * 格子是规整的（等高等宽），透视只体现在物件缩放上 ——
+ * 格子歪七扭八很难瞄准，摆东西会很烦。
+ * 一件东西可以占多格：cells:[列数, 排数]。显示框就是它占的那几格，
+ * 图片在框里贴底居中缩放，所以画布比例决定实际大小 ——
+ * 台灯画成 1:3 的窄高比，就真的占满三排。
  *
  * 存的是格子坐标（列/行）不是像素，所以换背景、改窗口大小、
  * 甚至以后调 deskTop，摆好的东西都还在原来的位置上。
@@ -18,14 +20,23 @@
 const KEY = 'tongzhuo.desk.v1';
 const $ = (id) => document.getElementById(id);
 
-/* 三排格子在画面纵向的位置。上边界就是桌沿（DESK.screenTop = 0.72）。
-   越靠里越薄，这是透视。 */
-export const ROWS = [
-  { top: 0.885, bottom: 1.000, scale: 1.00, inset: 0.00 },   // 近（贴着你这边）
-  { top: 0.790, bottom: 0.885, scale: 0.84, inset: 0.04 },   // 中
-  { top: 0.720, bottom: 0.790, scale: 0.70, inset: 0.09 }    // 远（贴着桌沿）
-];
+/* 格子是规整的：桌沿（0.72）到画面底边平分成三排，每排等高、通栏，
+   六列等宽。透视只体现在物件的缩放上，不体现在格子形状上 ——
+   格子歪七扭八的话很难瞄准，摆东西会很烦。 */
+const DESK_TOP = 0.72;
+// 底下留一条边：最近那排要是贴着画面底边，摆上去的东西会被切掉脚
+const DESK_BOTTOM = 0.965;
 export const COLS = 6;
+export const ROW_N = 3;
+const ROW_H = (DESK_BOTTOM - DESK_TOP) / ROW_N;
+/* 每排的透视缩放。近的一排是基准，越靠里越小一点。 */
+const ROW_SCALE = [1.00, 0.91, 0.82];
+
+export const ROWS = ROW_SCALE.map((scale, i) => ({
+  bottom: DESK_BOTTOM - ROW_H * i,
+  top: DESK_BOTTOM - ROW_H * (i + 1),
+  scale
+}));
 
 let catalog = [];          // 商品表，用来查图和尺寸
 let placed = [];           // [{ id, col, row }]
@@ -53,15 +64,46 @@ export const isDirty = () => JSON.stringify(placed) !== saved;
 /** 一个格子在画面上的位置，全部是百分比，跟窗口大小无关 */
 export function cellBox(col, row) {
   const r = ROWS[row];
-  const left = r.inset, span = 1 - r.inset * 2;
-  const w = span / COLS;
+  const w = 1 / COLS;
   return {
-    left: (left + w * col) * 100,
+    left: w * col * 100,
     width: w * 100,
     top: r.top * 100,
     height: (r.bottom - r.top) * 100,
     scale: r.scale
   };
+}
+
+/** 一件东西占几格。没写就当 1×1。 */
+const cellsOf = (item) => {
+  const c = (item && item.cells) || [1, 1];
+  return [Math.max(1, c[0] | 0), Math.max(1, c[1] | 0)];
+};
+
+/** 摆件的显示框：以点中的那一格为底，向上长 h 排、左右铺开 w 列。
+ *  图片在框里 object-fit:contain + 底部对齐，所以画布比例决定实际大小 ——
+ *  台灯画得高，就会真的占满三排。 */
+export function itemBox(item, col, row) {
+  const [w, h] = cellsOf(item);
+  const base = cellBox(col, row);
+  const bw = base.width * w * base.scale;
+  const bh = base.height * h * base.scale;
+  return {
+    // 以点中格子的中心对齐，左右铺开
+    left: base.left + base.width / 2 - bw / 2,
+    width: bw,
+    height: bh,
+    bottom: 100 - base.top - base.height
+  };
+}
+
+/** 这件东西放在 (col,row) 时，底排会压住哪几列 */
+function footprint(item, col, row) {
+  const [w] = cellsOf(item);
+  const start = col - Math.floor((w - 1) / 2);
+  const cols = [];
+  for (let i = 0; i < w; i++) cols.push(start + i);
+  return { row, cols };
 }
 
 const byId = (id) => catalog.find(c => c.id === id);
@@ -73,16 +115,16 @@ function paint(layer, onPick) {
   placed.forEach((p, i) => {
     const item = byId(p.id);
     if (!item) return;                       // 商品表里没有了就跳过，不留残影
-    const box = cellBox(p.col, p.row);
+    const box = itemBox(item, p.col, p.row);
     const el = document.createElement('img');
     el.className = 'deskItem';
     el.src = '../' + item.asset;
     el.draggable = false;
-    // 宽度按 deskWidth（占画面宽的百分比）再乘这一排的透视缩放；
-    // 底边贴在格子底部 —— 物体和桌面接触的那条线
-    el.style.width = ((item.deskWidth || 10) * box.scale) + '%';
-    el.style.left = (box.left + box.width / 2) + '%';
-    el.style.bottom = (100 - box.top - box.height) + '%';
+    // 框就是它占的那几格；图片在框里贴底居中缩放
+    el.style.left = box.left + '%';
+    el.style.width = box.width + '%';
+    el.style.height = box.height + '%';
+    el.style.bottom = box.bottom + '%';
     el.style.zIndex = String(10 - p.row);     // 近的压住远的
     if (onPick) {
       el.classList.add('pickable');
@@ -127,7 +169,7 @@ function renderTray() {
 function renderGrid() {
   const grid = $('deskGrid');
   grid.innerHTML = '';
-  for (let row = ROWS.length - 1; row >= 0; row--) {
+  for (let row = ROW_N - 1; row >= 0; row--) {
     for (let col = 0; col < COLS; col++) {
       const box = cellBox(col, row);
       const cell = document.createElement('button');
@@ -144,9 +186,24 @@ function renderGrid() {
 
 function place(col, row) {
   if (!picked) return;
-  // 一格只放一件，重复放就替换 —— 叠在一起看不清是哪件
-  placed = placed.filter(p => !(p.col === col && p.row === row));
-  placed.push({ id: picked, col, row });
+  const item = byId(picked);
+  if (!item) return;
+  const want = footprint(item, col, row);
+  // 超出桌面就往里推，别让东西半个身子飘在桌子外面
+  const [w] = cellsOf(item);
+  const c0 = Math.min(Math.max(0, want.cols[0]), COLS - w);
+  const cols = [];
+  for (let i = 0; i < w; i++) cols.push(c0 + i);
+  const center = c0 + Math.floor((w - 1) / 2);
+
+  // 底排压住的格子有重叠就先把原来的挪走 —— 叠在一起看不清是哪件
+  placed = placed.filter((p) => {
+    const other = byId(p.id);
+    if (!other || p.row !== row) return true;
+    const f = footprint(other, p.col, p.row);
+    return !f.cols.some(c => cols.includes(c));
+  });
+  placed.push({ id: picked, col: center, row });
   refreshEditor();
 }
 

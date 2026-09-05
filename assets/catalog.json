@@ -39,8 +39,11 @@
     "description": "给夜里的桌子添一盏不刺眼的灯。",
     "preview": "assets/items/lamp.svg",
     "asset": "assets/items/lamp.svg",
-    "deskWidth": 11,
-    "available": true
+    "available": true,
+    "cells": [
+      1,
+      3
+    ]
   },
   {
     "id": "item_plant",
@@ -50,8 +53,11 @@
     "description": "不用怎么管，放着就行。",
     "preview": "assets/items/plant.svg",
     "asset": "assets/items/plant.svg",
-    "deskWidth": 9,
-    "available": true
+    "available": true,
+    "cells": [
+      1,
+      2
+    ]
   },
   {
     "id": "item_mug",
@@ -61,8 +67,11 @@
     "description": "半杯凉掉的咖啡。",
     "preview": "assets/items/mug.svg",
     "asset": "assets/items/mug.svg",
-    "deskWidth": 7,
-    "available": true
+    "available": true,
+    "cells": [
+      1,
+      1
+    ]
   },
   {
     "id": "item_books",
@@ -72,8 +81,11 @@
     "description": "翻过的和没翻过的，摞在一起。",
     "preview": "assets/items/books.svg",
     "asset": "assets/items/books.svg",
-    "deskWidth": 12,
-    "available": true
+    "available": true,
+    "cells": [
+      2,
+      1
+    ]
   },
   {
     "id": "item_cat",
@@ -83,8 +95,11 @@
     "description": "它不学习，但它也不走。",
     "preview": "assets/items/cat.svg",
     "asset": "assets/items/cat.svg",
-    "deskWidth": 15,
-    "available": true
+    "available": true,
+    "cells": [
+      2,
+      2
+    ]
   },
   {
     "id": "scene_study_night",

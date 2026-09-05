@@ -369,10 +369,12 @@
   /* ---------------- 桌面摆件 ----------------
      贴在 #fg（桌面）之上。锚点是底边中点 —— 物体和桌面接触的那一点。 */
   #deskLayer,#deskEditLayer{position:absolute;inset:0;pointer-events:none}
-  .deskItem{position:absolute;transform:translateX(-50%);
-    filter:drop-shadow(0 4px 6px rgba(0,0,0,.55))}
+  /* 显示框就是它占的那几格；图片贴着框底居中缩放 ——
+     所以画布比例决定实际大小，台灯画得高就真的占满三排 */
+  .deskItem{position:absolute;object-fit:contain;object-position:bottom center;
+    filter:drop-shadow(0 4px 7px rgba(0,0,0,.5))}
   .deskItem.pickable{pointer-events:auto;cursor:pointer;transition:transform .12s}
-  .deskItem.pickable:hover{transform:translateX(-50%) translateY(-4px)}
+  .deskItem.pickable:hover{transform:translateY(-4px)}
 
   /* ---------------- 桌面布置页 ----------------
      不盖住桌子本身：上半屏是深色面板，桌沿以下透出真正的桌面。
