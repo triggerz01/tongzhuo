@@ -24,6 +24,30 @@ const state = {
   breakMin: 5
 };
 
+/* ---------------- 背景视频 ---------------- */
+/* 空着的自习室。会话开始就暂停 —— 没人看的时候没必要解码。 */
+async function initVideo() {
+  const v = $('homeVid');
+  if (!v || !(window.tz && window.tz.homeVideo)) return;
+  let src = null;
+  try { src = await window.tz.homeVideo(); } catch (e) { return; }
+  if (!src) return;                        // 没有视频就用原来的静态背景
+  v.src = src;
+  v.addEventListener('canplay', () => {
+    v.classList.add('ready');
+    v.play().catch(() => {});
+  }, { once: true });
+  // Chromium 偶尔会拒掉第一次 play()，补一次兜底重试
+  setTimeout(() => { if (v.classList.contains('ready') && v.paused && view !== 'session') v.play().catch(() => {}); }, 1200);
+  v.addEventListener('error', () => console.warn('[home] 背景视频加载失败'));
+}
+
+function videoPlaying(on) {
+  const v = $('homeVid');
+  if (!v || !v.classList.contains('ready')) return;
+  if (on) v.play().catch(() => {}); else v.pause();
+}
+
 /* ---------------- 界面切换 ---------------- */
 let view = 'home';   // home | setup | session
 
@@ -32,6 +56,7 @@ function show(v) {
   $('home').classList.toggle('on', v === 'home');
   $('setup').classList.toggle('on', v === 'setup');
   document.body.classList.toggle('in-session', v === 'session');
+  videoPlaying(v !== 'session');
   // 主界面和准备页都不需要角色说话
   if (v !== 'session' && window.TZRoom) window.TZRoom.say('');
 }
@@ -122,6 +147,7 @@ function init() {
     if (e.key === 'd' || e.key === 'D') document.body.classList.toggle('debug');
   });
 
+  initVideo();
   window.TZRoom.onSessionEnd(finish);
   setInterval(() => { if (view === 'setup') paintCamStatus(); }, 1500);
   show('home');

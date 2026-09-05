@@ -128,8 +128,15 @@
   /* ---------------- 主界面 / 准备页 ---------------- */
   /* 不做独立页面：角色本来就坐在那，盖一层暗色就是主界面。
      好处是挑设置的这几十秒里，模型和场景已经悄悄加载完了。 */
+  /* 主界面的背景视频：空着的自习室。进去之后角色才出现 —— 这个对比是刻意的。
+     用 mp4 不用 gif：深色渐变是 GIF 256 色最难看的情况，必然出现色带，
+     体积还大十倍。 */
+  #homeVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    z-index:25;display:none;background:#0b0e12}
+  body:not(.in-session) #homeVid.ready{display:block}
+
   .veil{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;
-    background:linear-gradient(rgba(8,10,13,.55) 0%, rgba(8,10,13,.86) 55%, rgba(8,10,13,.94) 100%);
+    background:linear-gradient(rgba(8,10,13,.42) 0%, rgba(8,10,13,.72) 48%, rgba(8,10,13,.88) 100%);
     backdrop-filter:blur(2px)}
   .veil.on{display:flex}
 
@@ -247,6 +254,8 @@
       <span class="badge">今日 <b id="coinText">0</b> / 30 枚</span>
     </div>
   </div>
+
+  <video id="homeVid" muted loop playsinline preload="auto"></video>
 
   <div id="quitBar"><button id="btnQuitSession">结束这一场</button></div>
 

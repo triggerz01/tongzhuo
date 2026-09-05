@@ -255,3 +255,10 @@ ipcMain.handle('perception:status', () => perceptionStatus());
 
 app.on('before-quit', stopPerception);
 app.on('will-quit', stopPerception);
+
+// 主界面的背景视频在不在（不在就退回静态背景）
+ipcMain.handle('video:home', () => {
+  const fs = require('fs');
+  const p = path.join(__dirname, '..', 'assets', 'video', 'home.mp4');
+  return fs.existsSync(p) ? '../assets/video/home.mp4' : null;
+});

@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('tz', {
   listModels: () => ipcRenderer.invoke('models:list'),
   listScenes: () => ipcRenderer.invoke('scenes:list'),
   listAnims: () => ipcRenderer.invoke('anims:list'),
+  homeVideo: () => ipcRenderer.invoke('video:home'),
   perception: {
     start:   () => ipcRenderer.invoke('perception:start'),
     stop:    () => ipcRenderer.invoke('perception:stop'),
