@@ -14,6 +14,7 @@ import { initSettings } from './settings.js';
 import { initSettle, showSettle } from './settle.js';
 import { initStore, paintBalance } from './store.js';
 import { initDesk, renderDesk } from './desk.js';
+import { initStory } from './story.js';   // 剧情：ban-jiang 的地盘
 
 const $ = (id) => document.getElementById(id);
 
@@ -191,6 +192,7 @@ function init() {
   window.__settle = showSettle;
   initStore(() => show('home'));
   initDesk(() => show('home'));
+  initStory();
   window.TZRoom.onSessionEnd(finish);
   setInterval(() => { if (view === 'setup') paintCamStatus(); }, 1500);
   show('home');

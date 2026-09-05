@@ -621,6 +621,59 @@ function react(name, silent) {
   return true;
 }
 
+/* ---------------- 对外事件 ----------------
+ * 给剧情模块（story.js）用。它只订阅事件、只调 tell()，不改这个文件 ——
+ * 两个人同时开发时，谁也别去动对方正在改的文件，这是唯一有效的办法。
+ *
+ * 事件：
+ *   session-start  {plannedMin, scene, model}
+ *   session-end    完整的 summary（含 points、events）
+ *   react          {name, kind, dur}   她做出一次反应
+ *   state-change   {label, prev}       感知到的状态变了（只在变化时发）
+ */
+const bus = new Map();
+
+function on(evt, fn) {
+  if (!bus.has(evt)) bus.set(evt, new Set());
+  bus.get(evt).add(fn);
+  return () => bus.get(evt).delete(fn);      // 返回退订函数
+}
+
+function emit(evt, payload) {
+  const list = bus.get(evt);
+  if (!list) return;
+  for (const fn of list) {
+    // 一个订阅者出错不能带崩整条链
+    try { fn(payload); } catch (e) { console.error('[bus]', evt, e); }
+  }
+}
+
+/**
+ * 让她说一句自定义的话（剧情台词用）。
+ * 没有对应音频，所以按字数估个时长驱动口型 —— 只出字幕，嘴也得动，
+ * 不然看着像弹幕不像她在说话。
+ *
+ * @param text     字幕原文
+ * @param opts.seconds 指定时长（秒）；不给就按字数估
+ * @param opts.recipe  表情配方名，见 expression.js 的 RECIPES
+ * @param opts.level   表情强度 0~1
+ * @param opts.role    动作角色名，见 CLIP_ROLES
+ */
+function tell(text, opts) {
+  const o = opts || {};
+  const sec = o.seconds || Math.max(1.6, String(text).length * 0.22);
+  say(text, sec * 1000 + 900);
+  if (face) {
+    face.talkAtLeast(sec);
+    if (o.recipe) face.applyRecipeHold(o.recipe, o.level ?? 0.7, o.hold ?? sec + 1.2);
+  }
+  if (o.role) {
+    const clip = clipFor(o.role);
+    if (clip) playClip(clip);
+  }
+  return sec;
+}
+
 /* ---------------- 摄像头联动 ----------------
  * 原则：状态一变就反应会显得神经质。除了"遮挡镜头"这种明确信号，
  * 其余都要等持续够久才触发 —— 阈值全在 LINK 里，方便调。
@@ -677,6 +730,7 @@ function fire(name, line) {
     if (window.TZPoints) window.TZPoints.award(kind);
   }
   react(name, line);
+  emit('react', { name, kind: EVENT_KIND[name] || null, dur: Math.round(epDur) });
   return true;
 }
 
@@ -685,6 +739,7 @@ function onState(label, duration) {
   // 没在自习就只更新界面，不做反应也不记账。
   // 准备页上摄像头可以先开着对位置，但她不该在那儿就开始夸你或者念你。
   if (!session) { epLabel = label; epDur = duration; return; }
+  if (label !== epLabel) emit('state-change', { label, prev: epLabel });
   // 换段了：结算上一段
   if (label !== epLabel) {
     if (epLabel === 'away') lastAwaySec = epDur;
@@ -1094,6 +1149,8 @@ function startSession(opts) {
   $('focusText').textContent = '0';
   $('pipLabel').textContent = '—';
   if (pipWanted && !pipOn) setPip(true);
+  emit('session-start', { plannedMin: min, scene: (SCENES[sceneIdx] || {}).name || '',
+                          model: settings.get().model });
   speak('sessionStart', 3.2);
 }
 function stopSession(reason) {
@@ -1137,6 +1194,7 @@ function stopSession(reason) {
   // 关掉它，但 pipWanted 留着 —— 下一场开始会自动开回来。
   if (pipOn) setPip(false);
   greeted = false;
+  emit('session-end', summary);
   sessionEndCbs.forEach(fn => { try { fn(summary); } catch (e) { console.error(e); } });
 }
 setInterval(() => {
@@ -1271,6 +1329,8 @@ window.TZRoom = {
                         LINK.reactCooldownSec * 1000 - (Date.now() - lastReactAt)) / 1000 }),
   reactAs: react,
   shots,
+  on,          // 给 story.js 订阅事件
+  tell,        // 给 story.js 说自定义台词
   voice: {
     play: (kind) => voice.play(kind, {
       onText: (t) => say(t, 3200),
