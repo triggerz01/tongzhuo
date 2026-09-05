@@ -122,6 +122,8 @@ async function pick(c) {
   await withSwap(async () => {
     if (window.TZRoom && window.TZRoom.reload) {
       await window.TZRoom.reload('../assets/models/' + c.file);
+      // 音频包跟着人走。男生和老师还没有包，会退化成只出字幕。
+      if (window.TZRoom.voice) window.TZRoom.voice.setCharacter(c.file);
     }
   }, c.name);
   await reveal(c);

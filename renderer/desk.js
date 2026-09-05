@@ -196,8 +196,11 @@ function place(col, row) {
   for (let i = 0; i < w; i++) cols.push(c0 + i);
   const center = c0 + Math.floor((w - 1) / 2);
 
-  // 底排压住的格子有重叠就先把原来的挪走 —— 叠在一起看不清是哪件
   placed = placed.filter((p) => {
+    // 同一件东西只能出现一次 —— 你只拥有一个马克杯，桌上就不该有两个。
+    // 再放一次是"挪位置"，不是"变出第二个"。
+    if (p.id === picked) return false;
+    // 底排压住的格子有重叠就把原来那件挪走 —— 叠在一起看不清是哪件
     const other = byId(p.id);
     if (!other || p.row !== row) return true;
     const f = footprint(other, p.col, p.row);

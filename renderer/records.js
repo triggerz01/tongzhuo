@@ -156,6 +156,7 @@ const KIND = {
   away:    { cn: '离席过久',  cls: 'bad' },
   drowsy:  { cn: '犯困',      cls: 'warn' },
   covered: { cn: '看不清你',  cls: 'warn' },
+  backturn:{ cn: '背对镜头',  cls: 'warn' },
   praise:  { cn: '专注达标',  cls: 'good' },
   back:    { cn: '回到座位',  cls: 'good' }
 };

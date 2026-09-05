@@ -56,6 +56,10 @@ export async function showSettle(s) {
     s.reason === 'planned' ? '今天的量完成了' : '这一场结束了';
   $('settleSub').textContent =
     `计划 ${s.plannedMin} 分钟 · 实际 ${s.elapsedMin} 分钟`;
+  // 收工那句话在这儿显示 —— 语音正在放，字幕得跟上
+  const q = $('settleLine');
+  q.textContent = s.line || '';
+  q.style.display = s.line ? '' : 'none';
 
   // --- 归零，等下一拍一拍放 ---
   $('settleMin').textContent = '0';

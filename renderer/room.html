@@ -248,6 +248,9 @@
     font-family:Impact,var(--sans);font-size:26px;letter-spacing:.05em;font-weight:400;
     text-shadow:2px 2px 0 rgba(0,0,0,.45);margin:0}
   #settleSub{margin:8px 0 14px;font-size:12.5px;color:#8d97a1;letter-spacing:.04em}
+  /* 收工那句话。语音同时在放，所以这行必须和音频一字不差 */
+  #settleLine{margin:0 0 14px;font-size:14px;color:#e6eaee;border-left:3px solid #9E1B25;
+    padding-left:11px;line-height:1.7}
 
   .settleBig{background:#0e0e10;padding:13px 18px;border-left:4px solid #9E1B25;
     display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
@@ -365,6 +368,13 @@
     animation:p5drop .5s .26s cubic-bezier(.16,1.15,.3,1) both}
   #homePoints{font-family:Impact,monospace;font-size:20px;color:#ffd23f;margin:0 4px;
     text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+  /* 演示现场要能一键闭麦，所以放在主界面而不是埋进设置 */
+  #btnMuteHome{position:absolute;right:18px;top:16px;z-index:5;
+    background:rgba(14,18,23,.7);color:#c9d1d8;border:1px solid rgba(255,255,255,.16);
+    padding:6px 14px;font-family:var(--sans);font-size:12px;cursor:pointer;
+    transform:skewX(-9deg)}
+  #btnMuteHome:hover{color:#fff;border-color:rgba(255,255,255,.34)}
+  #btnMuteHome.off{color:#7d8791}
 
   /* ---------------- 桌面摆件 ----------------
      贴在 #fg（桌面）之上。锚点是底边中点 —— 物体和桌面接触的那一点。 */
@@ -890,6 +900,7 @@
       <button id="btnSettings" class="ghostBtn"><span>设置</span></button>
     </div>
     <div id="homePointsRow">拥有 <b id="homePoints">0</b> 点专注星</div>
+    <button id="btnMuteHome" title="静音 / 取消静音">♪ 有声</button>
     <div id="homeSummary">
       <h4 id="sumTitle">这一场结束了</h4>
       <div class="row">
@@ -962,6 +973,7 @@
     <div class="settleCard">
       <h3 id="settleTitle">这一场结束了</h3>
       <p id="settleSub"></p>
+      <p id="settleLine"></p>
 
       <div class="settleBig">
         <span id="settleMin">0</span><span class="u">分钟专注</span>
@@ -1162,6 +1174,9 @@
   <button data-react="puzzled">疑惑</button>
   <span class="sep"></span>
   <button id="btnTalk">说话口型</button>
+  <span class="sep"></span>
+  <button id="btnVoiceTest">试听语音</button>
+  <button id="btnMute">静音</button>
   <button class="hide" id="btnHideExpr">收起</button>
 </div>
 

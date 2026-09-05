@@ -10,6 +10,7 @@ import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { loadMixamoAnimation } from './mixamo.js';
 import { Expressions, STATE_FACE } from './expression.js';
 import { settings } from './settings.js';
+import * as voice from './voice.js';
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -539,6 +540,11 @@ function onPerception(m) {
     const cn = LABEL_CN[m.label] || m.label;
     $('pipLabel').textContent = `${cn} · ${m.duration.toFixed(0)}s`;
     if (m.label !== lastLabel) { lastLabel = m.label; paintCam(); }
+    // 摄像头开着、第一次真的认出人：说一句「看到你了。」
+    if (!greeted && camOn && (m.label === 'focus' || m.label === 'phone' || m.label === 'drowsy')) {
+      greeted = true;
+      speak('cameraOn', 2.6);
+    }
     onState(m.label, m.duration || 0);
     // 联动先只做最轻的一层：认出你走了，角色抬头看一眼
     if (m.trigger && m.label === 'away') play('lookAway');
@@ -562,21 +568,33 @@ function onPerception(m) {
 /* 反应 = 表情 + 动作 + 台词，三样一起来才协调。
  * 动作用"角色"指定，缺哪个就退到候选里的下一个，缺光了就只做表情。 */
 const REACTIONS = {
-  praise:     { recipe: 'bigSmile',   level: 0.9,  hold: 4.0, role: 'praise',
-                say: '你已经坐了很久了，厉害啊。' },
-  disappoint: { recipe: 'frown',      level: 0.85, hold: 5.0, role: 'disappoint',
-                say: '手机。' },
-  lonely:     { recipe: 'sad',        level: 0.7,  hold: 4.5, role: 'lonely',
-                say: '你去哪儿了，我一个人坐着呢。' },
-  welcome:    { recipe: 'bigSmile',   level: 0.85, hold: 3.5, role: 'welcome',
-                say: '你回来啦，我等你半天了。' },
-  sleepy:     { recipe: 'sleepy',     level: 0.8,  hold: 3.5, role: null, yawn: true },
-  puzzled:    { recipe: 'surprised',  level: 0.75, hold: 2.5, role: 'nod',
-                say: '？' },
+  praise:     { recipe: 'bigSmile',   level: 0.9,  hold: 4.0, role: 'praise',   voice: 'praise' },
+  disappoint: { recipe: 'frown',      level: 0.85, hold: 5.0, role: 'disappoint', voice: 'phone' },
+  lonely:     { recipe: 'sad',        level: 0.7,  hold: 4.5, role: 'lonely',   voice: 'away' },
+  welcome:    { recipe: 'bigSmile',   level: 0.85, hold: 3.5, role: 'welcome',  voice: 'welcome' },
+  sleepy:     { recipe: 'sleepy',     level: 0.8,  hold: 3.5, role: null, yawn: true, voice: 'sleepy' },
+  puzzled:    { recipe: 'surprised',  level: 0.75, hold: 2.5, role: 'nod',      voice: 'puzzled' },
+  // 背对镜头：感知层一直认得出，之前没有反应。语气是好奇不是难过。
+  backturn:   { recipe: 'surprised',  level: 0.6,  hold: 3.0, role: 'lookAround', voice: 'backturn' },
   calm:       { recipe: 'gentleSmile', level: 0.5, hold: 3.0, role: null }
 };
 
-function react(name, line) {
+/** 播一条语音：字幕用同一条的原文，停留时长跟着音频走，口型也跟着音频走 */
+function speak(kind, minHold) {
+  const res = voice.play(kind, {
+    onText: (t) => say(t, Math.max(2600, (minHold || 2.4) * 1000)),
+    onMouth: (sec) => { if (face) face.talkAtLeast(sec); }
+  });
+  // 时长已知的话再校一次字幕：音频停了字幕还挂着，或者反过来，都很出戏
+  if (res && res.seconds && res.text) say(res.text, res.seconds * 1000 + 1300);
+  return res;
+}
+
+/**
+ * 做一次反应：表情 + 动作 + 语音。
+ * 第二个参数传 '' 可以强制不出声（待机小插曲用）。
+ */
+function react(name, silent) {
   const r = REACTIONS[name];
   if (!r || !face) return false;
   face.applyRecipeHold(r.recipe, r.level, r.hold);
@@ -585,12 +603,10 @@ function react(name, line) {
     const clip = clipFor(r.role);
     if (clip) playClip(clip);
   }
-  // 没传台词就用默认的 —— 只笑不张嘴看着发傻，嘴动起来才像个活人
-  const text = line !== undefined ? line : r.say;
-  if (text) {
-    say(text, Math.max(2600, r.hold * 1000));
-    // 台词短、情绪长的时候，嘴停下来太早会露馅。至少动到情绪的 70%。
-    if (face) face.talkAtLeast(r.hold * 0.7);
+  if (r.voice && silent !== '') {
+    // 字幕就是这条音频的原文，口型按音频真实时长走 ——
+    // 两件事都由 voice 模块给，物理上不会对不上
+    speak(r.voice, r.hold);
   }
   return true;
 }
@@ -609,6 +625,7 @@ const LINK = {
 };
 
 // 当前这一段连续状态
+let greeted = false;          // 这一场是否已经打过招呼
 let epLabel = null, epFired = {}, epNextAt = {};
 let lastAwaySec = 0;          // 上一段离席持续了多久
 let lastReactAt = 0;
@@ -620,7 +637,8 @@ function canReact() {
 // 反应名 → 记进事件时间线时用的类型
 const EVENT_KIND = {
   disappoint: 'phone', lonely: 'away', sleepy: 'drowsy',
-  puzzled: 'covered', praise: 'praise', welcome: 'back'
+  puzzled: 'covered', praise: 'praise', welcome: 'back',
+  backturn: 'backturn'
 };
 
 function fire(name, line) {
@@ -660,6 +678,8 @@ function onState(label, duration) {
       fire('welcome');
     } else if (label === 'covered') {
       fire('puzzled');            // 遮挡是明确信号，不用等
+    } else if (label === 'backturn') {
+      fire('backturn');           // 人还在，只是转过去了
     } else if (label === 'focus') {
       if (face) face.clearEmotion();   // 回到待机，表情交给微表情系统
     }
@@ -689,9 +709,12 @@ function onState(label, duration) {
   // 待机小插曲：专注时偶尔犯个困、疑惑一下，显得像个人而不是监控探头
   if (label === 'focus' && Date.now() > cuteAt && canReact()) {
     scheduleCute();
-    const pick = Math.random() < 0.55 ? 'sleepy' : 'puzzled';
     lastReactAt = Date.now();
-    react(pick, pick === 'sleepy' ? '' : '');   // 不说话，只做表情和小动作
+    // 待机时不说话，只做表情和小动作，外加一声没有词的气音 ——
+    // 句句有声反而像监控探头
+    const pick = Math.random() < 0.55 ? 'sleepy' : 'puzzled';
+    react(pick, '');
+    voice.play(pick === 'sleepy' ? 'yawn' : 'hum', {});
   }
 }
 let epDur = 0;
@@ -775,6 +798,7 @@ async function toggleCam() {
       if (!wsSend({ cmd: 'start' })) connectPerception();
     } else {
       camOn = false;
+      greeted = false;
       wsSend({ cmd: 'pause' });              // 真正释放摄像头，不是软暂停
       if (pipOn) setPip(false);
     }
@@ -1030,7 +1054,7 @@ function startSession(opts) {
   $('fMin').value = min;
   // 进了自习室就把摄像头这条线接上（用户没开摄像头也不影响其余部分）
   wsSend({ cmd: 'start' });
-  say('开始了，我也开始。', 3000);
+  speak('sessionStart', 3.2);
 }
 function stopSession(reason) {
   if (!session) return;
@@ -1061,10 +1085,15 @@ function stopSession(reason) {
   summary.points = window.TZPoints
     ? window.TZPoints.endSession(summary.reason, { focusMin, elapsedMin })
     : null;
+  const planned = summary.reason === 'planned';
   session = null;
   $('stateText').textContent = '已结束';
-  say('今天到这儿。', 3200);
+  // 收工这句要跟着 summary 走：回主界面会把浮动字幕清掉（show 里的 say('')），
+  // 音频却还在放，两边就对不上了。所以把原文交给结算页去显示。
+  const spoken = speak(planned ? 'sessionFinish' : 'sessionEarlyEnd', 3.2);
+  summary.line = spoken ? spoken.text : '';
   wsSend({ cmd: 'pause' });          // 收工就把摄像头放开
+  greeted = false;
   sessionEndCbs.forEach(fn => { try { fn(summary); } catch (e) { console.error(e); } });
 }
 setInterval(() => {
@@ -1092,6 +1121,34 @@ document.querySelectorAll('[data-react]').forEach(b => {
 });
 $('btnTalk').addEventListener('click', () => face && face.talk(2.5));
 $('btnHideExpr').addEventListener('click', () => document.body.classList.add('noexpr'));
+
+/* 语音：静音键和逐条试听 */
+function paintMute() {
+  const m = voice.isMuted();
+  $('btnMute').textContent = m ? '取消静音' : '静音';
+  const h = $('btnMuteHome');
+  h.textContent = m ? '♪ 静音' : '♪ 有声';
+  h.classList.toggle('off', m);
+}
+function toggleMute() { voice.setMuted(!voice.isMuted()); paintMute(); }
+$('btnMute').addEventListener('click', toggleMute);
+$('btnMuteHome').addEventListener('click', toggleMute);
+paintMute();
+
+// 试听：按顺序把每一类都放一条，字幕跟着走
+const VOICE_KINDS = ['sessionStart', 'cameraOn', 'praise', 'phone', 'away',
+                     'welcome', 'sleepy', 'puzzled', 'backturn',
+                     'sessionFinish', 'sessionEarlyEnd'];
+let vkIdx = 0;
+$('btnVoiceTest').addEventListener('click', () => {
+  const kind = VOICE_KINDS[vkIdx % VOICE_KINDS.length];
+  vkIdx++;
+  $('btnVoiceTest').textContent = '试听 ' + kind;
+  voice.play(kind, {
+    onText: (t) => say(t || '（无字音效）', 3200),
+    onMouth: (sec) => { if (face) face.talkAtLeast(sec); }
+  });
+});
 
 $('btnCam').addEventListener('click', toggleCam);
 $('btnCamReload').addEventListener('click', reloadCam);
@@ -1122,6 +1179,9 @@ loadScenes().then((real) => {
 // 启动时加载设置里选的那个人；文件不在了就退回目录里的第一个
 (async () => {
   if (!(await loadModel(settings.modelPath()))) await loadModel();
+  // 音频包按角色分。目前只有女生有；男生和老师没有包，退化成只出字幕。
+  voice.setCharacter(settings.get().model);
+  voice.warmup();          // 先把时长量出来，第一次触发口型就是准的
 })();
 
 // 用户不该为了用摄像头去手动开一个 Python 进程 —— 启动时自己拉起来。
@@ -1156,6 +1216,18 @@ window.TZRoom = {
                       lastAwaySec, cooldownLeft: Math.max(0,
                         LINK.reactCooldownSec * 1000 - (Date.now() - lastReactAt)) / 1000 }),
   reactAs: react,
+  voice: {
+    play: (kind) => voice.play(kind, {
+      onText: (t) => say(t, 3200),
+      onMouth: (sec) => { if (face) face.talkAtLeast(sec); }
+    }),
+    setCharacter: (m) => { const c = voice.setCharacter(m); voice.warmup(); return c; },
+    mute: (v) => { const r = voice.setMuted(v); paintMute(); return r; },
+    muted: voice.isMuted,
+    volume: voice.setVolume,
+    stop: voice.stop,
+    durations: voice.knownDurations
+  },
   reactions: () => Object.keys(REACTIONS),
   clipFor,
   freeze: (v) => {
