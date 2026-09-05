@@ -231,6 +231,141 @@
   #settings::-webkit-scrollbar-track{background:#0b0b0d}
   #settings::-webkit-scrollbar-thumb{background:#9E1B25}
 
+  /* ---------------- 结算页 ---------------- */
+  /* 结算页必须是不透明的：底下还压着主界面，半透明会把"开始自习"
+     那几个字透上来，糊成一片。 */
+  #settle{padding:18px 22px;align-items:center;justify-content:center;
+    background:
+      repeating-linear-gradient(115deg, rgba(158,27,37,.10) 0 3px, transparent 3px 58px),
+      linear-gradient(#0a0c0f 0%, #0a0c0f 100%)}
+  .settleCard{width:min(560px,100%);max-height:100%;overflow-y:auto;overflow-x:hidden;
+    padding-right:4px}
+  .settleCard::-webkit-scrollbar{width:7px}
+  .settleCard::-webkit-scrollbar-track{background:#0b0b0d}
+  .settleCard::-webkit-scrollbar-thumb{background:#9E1B25}
+  #settleTitle{display:inline-block;background:#9E1B25;color:#fff;padding:8px 22px 9px;
+    transform:skewX(-9deg);clip-path:polygon(0 0,100% 0,96% 100%,2% 92%);
+    font-family:Impact,var(--sans);font-size:26px;letter-spacing:.05em;font-weight:400;
+    text-shadow:2px 2px 0 rgba(0,0,0,.45);margin:0}
+  #settleSub{margin:8px 0 14px;font-size:12.5px;color:#8d97a1;letter-spacing:.04em}
+
+  .settleBig{background:#0e0e10;padding:13px 18px;border-left:4px solid #9E1B25;
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .settleBig #settleMin{font-family:Impact,monospace;font-size:46px;color:#ffd23f;line-height:1}
+  .settleBig .u{font-size:13px;color:#a6a6ae;letter-spacing:.08em}
+  .settleBig .side{margin-left:auto;display:flex;gap:16px;font-size:12px;color:#8d97a1}
+  .settleBig .side b{font-family:Impact,monospace;font-size:22px;color:#e6eaee;margin-right:3px}
+
+  #settleBars{margin-top:11px}
+  #settleBars .bar{display:grid;grid-template-columns:36px 1fr 48px;gap:10px;align-items:center;
+    margin-top:7px}
+  #settleBars .lb{font-size:11.5px;color:#8d97a1}
+  #settleBars .tr{height:14px;background:#0e0e10;transform:skewX(-8deg);overflow:hidden;display:block}
+  #settleBars .tr i{display:block;height:100%;width:0;transition:width .85s cubic-bezier(.2,1,.3,1)}
+  #settleBars .f-focus{background:#9E1B25}
+  #settleBars .f-away{background:#4a4a86}
+  #settleBars .f-phone{background:#ffd23f}
+  #settleBars .vv{font-family:Impact,monospace;font-size:15px;color:#fff;text-align:right}
+
+  #settle h5{font-family:Impact,var(--sans);font-size:12px;letter-spacing:.16em;color:#fff;
+    background:#9E1B25;display:inline-block;padding:2px 12px 3px;transform:skewX(-8deg);
+    margin:16px 0 9px}
+  .sline{display:grid;grid-template-columns:1fr auto 78px;gap:10px;align-items:center;
+    background:#1a1a1d;padding:7px 12px;margin-top:6px;transform:skewX(-5deg);
+    border-left:3px solid #2a2a2f;
+    animation:p5in .3s cubic-bezier(.16,1.1,.3,1) both}
+  .sline > *{transform:skewX(5deg)}
+  .sline .lb{font-size:12.5px;color:#d5dbe1}
+  .sline .n{font-size:11px;color:#7c7c85;font-family:var(--mono)}
+  .sline .amt{font-family:Impact,monospace;font-size:19px;text-align:right}
+  .sline.plus{border-left-color:#3fb27f}
+  .sline.plus .amt{color:#3fb27f}
+  .sline.minus{border-left-color:#9E1B25}
+  .sline.minus .amt{color:#ff5b5b}
+
+  #settleNote{margin-top:12px;font-size:12px;color:#8d97a1;border-left:3px solid #ffd23f;
+    padding-left:10px;line-height:1.7}
+  .settleFoot{display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap}
+  .settleFoot .tot{display:flex;align-items:baseline;gap:8px}
+  .settleFoot .tot small{font-size:11.5px;color:#8d97a1;letter-spacing:.1em}
+  #settleTotal{font-family:Impact,monospace;font-size:40px;line-height:1;color:#e6eaee}
+  #settleTotal.plus{color:#3fb27f}
+  #settleTotal.minus{color:#ff5b5b}
+  .settleFoot .bal{font-size:12px;color:#8d97a1}
+  .settleFoot .bal b{font-family:Impact,monospace;font-size:20px;color:#ffd23f;margin:0 3px}
+  .settleFoot .grow{margin-left:auto}
+
+  /* ---------------- 商店 ---------------- */
+  /* 不透明：底下压着主界面，半透明会把"伴你同行"透上来 */
+  #store{padding:0;overflow:hidden;
+    background:
+      repeating-linear-gradient(115deg, rgba(158,27,37,.10) 0 3px, transparent 3px 58px),
+      linear-gradient(#0a0c0f 0%, #0a0c0f 100%)}
+  /* 和日历一样：标题条 -1.4deg 的斜切会把右端抬出视口，得留出空间 */
+  #store .p5head{margin:22px -12px 0;padding-top:20px}
+  #storeBody{position:relative;z-index:2;flex:1;min-height:0;overflow-y:auto;padding:14px 26px 26px}
+  #storeBody::-webkit-scrollbar{width:7px}
+  #storeBody::-webkit-scrollbar-track{background:#0b0b0d}
+  #storeBody::-webkit-scrollbar-thumb{background:#9E1B25}
+  #storeTabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 18px}
+  #storeTabs button{padding:5px 16px 6px;background:#17181b;color:#9aa3ab;border:0;cursor:pointer;
+    font-family:var(--sans);font-size:12.5px;transform:skewX(-9deg);
+    box-shadow:2px 2px 0 rgba(0,0,0,.5)}
+  #storeTabs button:hover{color:#fff}
+  #storeTabs button.on{background:#9E1B25;color:#fff;box-shadow:3px 3px 0 rgba(0,0,0,.6)}
+  #storeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+
+  .goodsCard{display:flex;flex-direction:column;background:#141418;border:1px solid #2b2b31;
+    overflow:hidden;transform:skewX(-5deg);box-shadow:4px 4px 0 rgba(0,0,0,.55);
+    animation:p5in .32s cubic-bezier(.16,1.1,.3,1) both}
+  .goodsCard > *{transform:skewX(5deg)}
+  /* 人像是 3:4 的，按 center 裁会只剩脖子，得从顶上对齐 */
+  .goodsCard .pic{display:block;height:118px;background:#1b1f25 top center/cover no-repeat;
+    position:relative;filter:grayscale(.35) brightness(.88)}
+  .goodsCard .kind{position:absolute;left:7px;top:7px;background:rgba(0,0,0,.6);color:#c9d1d8;
+    font-size:10px;letter-spacing:.1em;padding:2px 7px}
+  .goodsCard .body{display:flex;flex-direction:column;gap:5px;padding:11px 12px 12px;flex:1}
+  .goodsCard b{font-size:14px;color:#e8ecef}
+  .goodsCard small{font-size:11px;color:#828c95;line-height:1.6;flex:1;min-height:34px}
+  .goodsCard .foot{display:flex;align-items:center;gap:8px;margin-top:2px}
+  .goodsCard .price{font-family:Impact,monospace;font-size:16px;color:#ffd23f;letter-spacing:.04em}
+  .goodsCard .foot button{margin-left:auto;padding:5px 14px;background:#9E1B25;color:#fff;border:0;
+    cursor:pointer;font-family:var(--sans);font-size:12px;transform:skewX(-9deg)}
+  .goodsCard .foot button:hover{background:#b52430}
+  .goodsCard .tag{margin-left:auto;font-size:11px;padding:3px 9px;letter-spacing:.06em}
+  .goodsCard .tag.have{background:#1d3a2c;color:#6fd3a0}
+  .goodsCard .tag.soon{background:#2a2a2f;color:#9a9aa2}
+  .goodsCard .tag.short{background:#2a1216;color:#e08b93}
+  .goodsCard.have .pic{filter:none}
+  .storeEmpty{grid-column:1/-1;padding:52px 20px;text-align:center;color:#75808a;font-size:13px;
+    line-height:1.9;border:1px dashed #2f3841}
+
+  #storeBalance{font-family:Impact,monospace;font-size:24px;color:#fff;
+    text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+
+  /* 兑换确认 */
+  #storeBuy{position:absolute;inset:0;z-index:50;display:flex;align-items:center;
+    justify-content:center;background:rgba(6,6,8,.72);opacity:0;pointer-events:none;
+    transition:opacity .18s}
+  #storeBuy.on{opacity:1;pointer-events:auto}
+  #storeBuy .card{width:min(400px,86%);background:#131315;padding:22px 24px 24px;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);
+    box-shadow:8px 8px 0 rgba(0,0,0,.55);transform:skewX(-2deg)}
+  #storeBuy .card > *{transform:skewX(2deg)}
+  #buyTitle{margin:0 0 8px;font-family:Impact,var(--sans);font-size:20px;color:#fff;
+    font-weight:400;letter-spacing:.04em}
+  #buyText{margin:0;font-size:12.5px;color:#8d97a1;line-height:1.8}
+  #storeBuy .acts{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}
+  #storeBuy .acts button{padding:7px 16px;border:0;cursor:pointer;font-family:var(--sans);
+    font-size:12.5px;transform:skewX(-9deg);background:#22242a;color:#c9d1d8}
+  #storeBuy .acts button.ok{background:#9E1B25;color:#fff}
+
+  /* 主界面余额 */
+  #homePointsRow{margin-top:18px;font-size:12px;color:#9aa3ab;letter-spacing:.1em;
+    animation:p5drop .5s .26s cubic-bezier(.16,1.15,.3,1) both}
+  #homePoints{font-family:Impact,monospace;font-size:20px;color:#ffd23f;margin:0 4px;
+    text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+
   #modeList{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
   .modeCard{position:relative;padding:16px 18px;border:1px solid #2b333c;
     background:rgba(20,25,31,.72);cursor:pointer;text-align:left;font-family:var(--sans)}
@@ -663,14 +798,81 @@
     <div class="acts">
       <button id="btnStart" class="bigBtn"><span>开始自习</span></button>
       <button id="btnRecords" class="ghostBtn"><span>学习记录</span></button>
+      <button id="btnStore" class="ghostBtn"><span>专注星商店</span></button>
       <button id="btnSettings" class="ghostBtn"><span>设置</span></button>
     </div>
+    <div id="homePointsRow">拥有 <b id="homePoints">0</b> 点专注星</div>
     <div id="homeSummary">
       <h4 id="sumTitle">这一场结束了</h4>
       <div class="row">
         <span>专注 <b id="sumMinutes">0</b> 分钟</span>
         <span>离席 <b id="sumAway">0</b> 次</span>
         <span>走神 <b id="sumDistract">0</b> 次</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="store" class="veil">
+    <div class="p5bg"></div><div class="p5dots"></div>
+    <div class="p5head">
+      <h2>STORE</h2>
+      <span class="mo">专注星</span>
+      <span class="grow">
+        <span class="p5stat"><b id="storeBalance">0</b>点</span>
+        <button class="back" id="storeBack">返回</button>
+      </span>
+    </div>
+    <div id="storeBody">
+      <div id="storeTabs"></div>
+      <div id="storeGrid"></div>
+    </div>
+
+    <div id="storeBuy">
+      <div class="card">
+        <h3 id="buyTitle"></h3>
+        <p id="buyText"></p>
+        <div class="acts">
+          <button id="buyCancel">再想想</button>
+          <button id="buyOk" class="ok">确认兑换</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settle" class="veil">
+    <div class="settleCard">
+      <h3 id="settleTitle">这一场结束了</h3>
+      <p id="settleSub"></p>
+
+      <div class="settleBig">
+        <span id="settleMin">0</span><span class="u">分钟专注</span>
+        <span class="side">
+          <span>离席 <b id="settleAway">0</b>次</span>
+          <span>手机 <b id="settlePhone">0</b>次</span>
+        </span>
+      </div>
+
+      <div id="settleBars">
+        <div class="bar"><span class="lb">专注</span>
+          <span class="tr"><i id="barFocus" class="f-focus"></i></span>
+          <span class="vv" id="barFocusV">0&prime;</span></div>
+        <div class="bar"><span class="lb">离席</span>
+          <span class="tr"><i id="barAway" class="f-away"></i></span>
+          <span class="vv" id="barAwayV">0&prime;</span></div>
+        <div class="bar"><span class="lb">手机</span>
+          <span class="tr"><i id="barPhone" class="f-phone"></i></span>
+          <span class="vv" id="barPhoneV">0&prime;</span></div>
+      </div>
+
+      <h5>这一场的点数</h5>
+      <div id="settleLines"></div>
+      <p id="settleNote"></p>
+
+      <div class="settleFoot">
+        <span class="tot"><span id="settleTotal">0</span><small>点</small></span>
+        <span class="bal">余额 <b id="settleBalance">0</b> 点</span>
+        <span class="grow"></span>
+        <button id="btnSettleOk" class="bigBtn"><span>知道了</span></button>
       </div>
     </div>
   </div>
@@ -847,8 +1049,8 @@
 <div class="dock">
   <label>时长</label><input type="number" id="fMin" value="25" min="1" max="240">
   <label>休息</label><input type="number" id="fBreak" value="5" min="0" max="60">
-  <button id="btnStart" class="primary">开始自习</button>
-  <button id="btnStop">结束</button>
+  <button id="btnStartDebug" class="primary">开始自习</button>
+  <button id="btnStopDebug">结束</button>
   <div class="grow">
     <button id="btnReload">重新加载模型</button>
     <button id="btnScene">切换场景</button>
@@ -867,6 +1069,8 @@
   }
 }
 </script>
+<script src="points.js"></script>
+<script>window.TZPoints = new window.TZPointsAPI.Points();</script>
 <script type="module" src="room.js"></script>
 <script type="module" src="home.js"></script>
 </body>

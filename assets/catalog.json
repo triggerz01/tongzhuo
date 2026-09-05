@@ -1,0 +1,76 @@
+[
+  {
+    "id": "char_girl_a",
+    "name": "女生",
+    "type": "companion",
+    "price": 0,
+    "description": "安静，偶尔抬头看你一眼。初始就在。",
+    "preview": "assets/models/thumbs/girl.jpg",
+    "asset": "AvatarSample_A.vrm",
+    "default": true,
+    "available": true
+  },
+  {
+    "id": "char_boy_1",
+    "name": "男生",
+    "type": "companion",
+    "price": 0,
+    "description": "话不多，但一直在写。初始就在。",
+    "preview": "assets/models/thumbs/boy1.jpg",
+    "asset": "boy1.vrm",
+    "default": true,
+    "available": true
+  },
+  {
+    "id": "char_teacher",
+    "name": "老师",
+    "type": "supervisor",
+    "price": 800,
+    "description": "严肃，说到做到。监督模式的人物，行为还在做。",
+    "preview": "assets/models/thumbs/teacher.jpg",
+    "asset": "teacher.vrm",
+    "available": false
+  },
+  {
+    "id": "scene_study_night",
+    "name": "自习室（夜）",
+    "type": "scene",
+    "price": 0,
+    "description": "空无一人的大学自习室，只留一盏灯。初始就在。",
+    "preview": "assets/scenes/01-自习室夜.jpg",
+    "asset": "01-自习室夜",
+    "default": true,
+    "available": true
+  },
+  {
+    "id": "scene_library",
+    "name": "图书馆",
+    "type": "scene",
+    "price": 0,
+    "description": "书架一直排到看不见的地方。初始就在。",
+    "preview": "assets/scenes/02-图书馆.jpg",
+    "asset": "02-图书馆",
+    "default": true,
+    "available": true
+  },
+  {
+    "id": "scene_cafe",
+    "name": "咖啡馆",
+    "type": "scene",
+    "price": 300,
+    "description": "木纹很重的长桌，背后有人在磨豆子。",
+    "preview": "assets/scenes/03-咖啡馆.jpg",
+    "asset": "03-咖啡馆",
+    "available": true
+  },
+  {
+    "id": "scene_bedroom",
+    "name": "卧室（晚）",
+    "type": "scene",
+    "price": 300,
+    "description": "自己的房间，台灯是暖的。",
+    "preview": "assets/scenes/04-卧室夜.jpg",
+    "asset": "04-卧室夜",
+    "available": true
+  }
+]

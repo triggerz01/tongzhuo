@@ -149,6 +149,18 @@ ipcMain.handle('scenes:list', () => {
   } catch (e) { return []; }
 });
 
+// 商品清单由素材维护；商店只消费统一 JSON，不把商品写死在界面里。
+ipcMain.handle('catalog:list', () => {
+  const file = path.join(__dirname, '..', 'assets', 'catalog.json');
+  try {
+    const rows = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return Array.isArray(rows) ? rows : [];
+  } catch (e) {
+    console.warn('[catalog] 读取失败：', e.message);
+    return [];
+  }
+});
+
 // 列出 assets/animations 下的 Mixamo 动作
 ipcMain.handle('anims:list', () => {
   const fs = require('fs');

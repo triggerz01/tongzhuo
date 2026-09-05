@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('tz', {
   onBus: (cb) => ipcRenderer.on('bus', (_e, msg) => cb(msg)),
   listModels: () => ipcRenderer.invoke('models:list'),
   listScenes: () => ipcRenderer.invoke('scenes:list'),
+  listCatalog: () => ipcRenderer.invoke('catalog:list'),
   listAnims: () => ipcRenderer.invoke('anims:list'),
   homeVideo: () => ipcRenderer.invoke('video:home'),
   perception: {

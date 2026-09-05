@@ -627,11 +627,15 @@ function fire(name, line) {
   if (!canReact()) return false;
   lastReactAt = Date.now();
   if (session && EVENT_KIND[name]) {
+    const kind = EVENT_KIND[name];
     session.events.push({
       t: Math.round((Date.now() - session.startedAt) / 1000),   // 距开场多少秒
-      kind: EVENT_KIND[name],
+      kind,
       dur: Math.round(epDur)                                     // 触发时已经持续了多久
     });
+    // 点数就挂在这儿：她做出反应和账上记一笔，是同一个事件。
+    // 另起一套状态机去数同一串信号，两本账迟早会分家。
+    if (window.TZPoints) window.TZPoints.award(kind);
   }
   react(name, line);
   return true;
@@ -1021,6 +1025,7 @@ function startSession(opts) {
               byLabel: {},
               // 触发过提醒的时刻，详情页的时间线就是它
               events: [] };
+  if (window.TZPoints) window.TZPoints.startSession({ plannedMin: min });
   $('stateText').textContent = '自习中';
   $('fMin').value = min;
   // 进了自习室就把摄像头这条线接上（用户没开摄像头也不影响其余部分）
@@ -1034,11 +1039,16 @@ function stopSession(reason) {
     session.byLabel[epLabel] = (session.byLabel[epLabel] || 0) + epDur;
   }
   const secs = session.byLabel;
+  const elapsedMin = Math.max(1, Math.round((Date.now() - session.startedAt) / 60000));
+  // 没开摄像头时 byLabel 是空的，focusMin 会算成 0，日历上就成了"专注 0 分钟"。
+  // 没有摄像头就是没有证据，这时候按坐满算 —— 记成 0 比记成满更离谱。
+  const sawAnything = Object.keys(secs).length > 0;
+  const focusMin = sawAnything ? Math.round((secs.focus || 0) / 60) : elapsedMin;
   const summary = {
     reason: reason || 'manual',
     startedAt: session.startedAt,
-    elapsedMin: Math.max(1, Math.round((Date.now() - session.startedAt) / 60000)),
-    focusMin: Math.round((secs.focus || 0) / 60),
+    elapsedMin,
+    focusMin,
     awayMin: Math.round((secs.away || 0) / 60),
     phoneMin: Math.round((secs.phone || 0) / 60),
     drowsyMin: Math.round((secs.drowsy || 0) / 60),
@@ -1047,6 +1057,10 @@ function stopSession(reason) {
     events: session.events.slice(),
     plannedMin: session.plannedMin
   };
+  // 点数结算。放在 summary 组好之后 —— 结算页要用到专注时长。
+  summary.points = window.TZPoints
+    ? window.TZPoints.endSession(summary.reason, { focusMin, elapsedMin })
+    : null;
   session = null;
   $('stateText').textContent = '已结束';
   say('今天到这儿。', 3200);
@@ -1061,8 +1075,10 @@ setInterval(() => {
   if (m >= session.plannedMin) stopSession('planned');
 }, 1000);
 
-$('btnStart').addEventListener('click', startSession);
-$('btnStop').addEventListener('click', stopSession);
+// 调试条那两个按钮以前也叫 btnStart/btnStop，和主界面的撞了 id ——
+// getElementById 只返回第一个，调试条的按钮其实一直是死的。
+$('btnStartDebug').addEventListener('click', startSession);
+$('btnStopDebug').addEventListener('click', stopSession);
 $('btnReload').addEventListener('click', () => loadModel());
 $('btnScene').addEventListener('click', () => applyScene(sceneIdx + 1));
 // 表情调试条：调表情时最好把身体冻住，不然动作会盖过表情

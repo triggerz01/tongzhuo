@@ -11,6 +11,8 @@
 
 import { initRecords, recordStore } from './records.js';
 import { initSettings } from './settings.js';
+import { initSettle, showSettle } from './settle.js';
+import { initStore, paintBalance } from './store.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -67,6 +69,8 @@ function show(v) {
   $('home').classList.toggle('on', v === 'home');
   $('setup').classList.toggle('on', v === 'setup');
   $('settings').classList.toggle('on', v === 'settings');
+  if (v !== 'settle') $('settle').classList.remove('on');
+  if (v !== 'store') $('store').classList.remove('on');
   if (v !== 'home') $('records').classList.remove('on');
   document.body.classList.toggle('in-session', v === 'session');
   videoPlaying(v !== 'session');
@@ -150,11 +154,8 @@ function finish(summary) {
       scene: (names[state.scene] || '').replace(/^\d+-/, '')
     });
   } catch (e) { console.warn('[home] 记录写入失败', e); }
-  $('homeSummary').classList.add('on');
-  $('sumMinutes').textContent = s.focusMin ?? 0;
-  $('sumAway').textContent = s.awayCount ?? 0;
-  $('sumDistract').textContent = s.distractCount ?? 0;
-  $('sumTitle').textContent = (s.reason === 'planned') ? '今天的量完成了' : '这一场结束了';
+  // 先看结算，点"知道了"才回主界面
+  showSettle(s);
 }
 
 /* ---------------- 装配 ---------------- */
@@ -182,6 +183,9 @@ function init() {
   initVideo();
   initRecords();
   initSettings(show);
+  initSettle(() => { show('home'); paintBalance(); });
+  window.__settle = showSettle;
+  initStore(() => show('home'));
   window.TZRoom.onSessionEnd(finish);
   setInterval(() => { if (view === 'setup') paintCamStatus(); }, 1500);
   show('home');
