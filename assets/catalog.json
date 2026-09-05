@@ -1,0 +1,15 @@
+[
+  {
+    "id": "item_desk_lamp_01",
+    "name": "暖光台灯",
+    "type": "item",
+    "price": 60,
+    "unlockMinutes": 0,
+    "description": "给夜晚的书桌添一盏不刺眼的灯。购买后，下次开场由同桌带来。",
+    "preview": "",
+    "asset": "builtin:desk-lamp",
+    "compatibleCharacters": ["all"],
+    "firstUnlockEvent": "desk_lamp_arrival",
+    "available": true
+  }
+]

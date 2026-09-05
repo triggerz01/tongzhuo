@@ -39,6 +39,12 @@ def _pick_object_model() -> str:
 OBJ_MODEL_PATH = _pick_object_model()
 
 
+def _base_options_for_model(model_path: str):
+    """Load model bytes in Python so native MediaPipe never opens a Unicode path."""
+    with open(model_path, "rb") as model_file:
+        return mp_python.BaseOptions(model_asset_buffer=model_file.read())
+
+
 @dataclass
 class Frame:
     """一帧的全部特征。"""
@@ -92,7 +98,7 @@ class FaceAnalyzer:
             )
 
         opts = mp_vision.FaceLandmarkerOptions(
-            base_options=mp_python.BaseOptions(model_asset_path=model_path),
+            base_options=_base_options_for_model(model_path),
             running_mode=mp_vision.RunningMode.VIDEO,
             num_faces=1,
             output_face_blendshapes=True,
@@ -196,7 +202,7 @@ class PhoneDetector:
             return
         try:
             opts = mp_vision.ObjectDetectorOptions(
-                base_options=mp_python.BaseOptions(model_asset_path=model_path),
+                base_options=_base_options_for_model(model_path),
                 running_mode=mp_vision.RunningMode.VIDEO,
                 score_threshold=score,
                 category_allowlist=list(self.TARGETS),
@@ -268,7 +274,7 @@ class AnyObjectDetector(PhoneDetector):
         if not _HAS_MP or not os.path.exists(model_path):
             return
         opts = mp_vision.ObjectDetectorOptions(
-            base_options=mp_python.BaseOptions(model_asset_path=model_path),
+            base_options=_base_options_for_model(model_path),
             running_mode=mp_vision.RunningMode.VIDEO,
             score_threshold=score,
             max_results=10,

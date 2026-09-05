@@ -120,9 +120,14 @@ function paintCamStatus() {
 /* ---------------- 开始 / 结束 ---------------- */
 function begin() {
   const m = Math.max(1, Math.min(600, Number($('durCustom').value) || state.minutes));
+  const mode = window.TZPointsUI ? window.TZPointsUI.mode() : 'companion';
+  if (mode === 'contract' && window.TZRoom && !window.TZRoom.cameraEnabled()) {
+    window.alert('契约模式需要先开启摄像头。共场模式可以在无摄像头时使用。');
+    return;
+  }
   state.minutes = m;
   show('session');
-  window.TZRoom.startSession({ minutes: m, breakMin: state.breakMin });
+  window.TZRoom.startSession({ minutes: m, breakMin: state.breakMin, mode });
 }
 
 /** 时长到了或手动结束 —— 回主界面，带一张小结 */
@@ -147,6 +152,7 @@ function finish(summary) {
   $('sumAway').textContent = s.awayCount ?? 0;
   $('sumDistract').textContent = s.distractCount ?? 0;
   $('sumTitle').textContent = (s.reason === 'planned') ? '今天的量完成了' : '这一场结束了';
+  if (window.TZPointsUI) window.TZPointsUI.finish(s.points);
 }
 
 /* ---------------- 装配 ---------------- */

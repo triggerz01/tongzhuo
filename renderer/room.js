@@ -469,6 +469,9 @@ function connectPerception() {
 
   ws.onclose = () => {
     $('pipLabel').textContent = '连接已断开';
+    if (session && window.TZPoints) {
+      window.TZPoints.noteState(session.mode === 'contract' ? 'unknown' : 'focus', 0);
+    }
     paintCam();
     retryWs();
   };
@@ -512,6 +515,7 @@ function onPerception(m) {
     $('pipLabel').textContent = `${cn} · ${m.duration.toFixed(0)}s`;
     if (m.label !== lastLabel) { lastLabel = m.label; paintCam(); }
     onState(m.label, m.duration || 0);
+    if (session && window.TZPoints) window.TZPoints.noteState(m.label, m.duration || 0);
     // 联动先只做最轻的一层：认出你走了，角色抬头看一眼
     if (m.trigger && m.label === 'away') play('lookAway');
   }
@@ -727,6 +731,10 @@ async function toggleCam() {
     } else {
       camOn = false;
       wsSend({ cmd: 'pause' });              // 真正释放摄像头，不是软暂停
+      if (session && window.TZPoints) {
+        // 共场模式回退为纯计时；契约失去感知后暂停累计。
+        window.TZPoints.noteState(session.mode === 'contract' ? 'unknown' : 'focus', 0);
+      }
       if (pipOn) setPip(false);
     }
   } finally {
@@ -929,24 +937,52 @@ function say(text, ms) {
 let session = null;
 const sessionEndCbs = [];
 
+function refreshOwned() {
+  const snap = window.TZPoints ? window.TZPoints.snapshot() : { delivered: [] };
+  const hasLamp = snap.delivered.includes('item_desk_lamp_01');
+  const lamp = $('deskLampItem');
+  if (lamp) lamp.style.display = hasLamp ? '' : 'none';
+  const glow = $('lampGlow');
+  if (glow) glow.style.display = hasLamp ? '' : 'none';
+}
+
+function deliverPendingItem() {
+  if (!window.TZPoints) return '';
+  const pending = window.TZPoints.pendingDeliveries();
+  if (pending.includes('item_desk_lamp_01')) {
+    window.TZPoints.markDelivered('item_desk_lamp_01');
+    refreshOwned();
+    if (window.TZStore) window.TZStore.render();
+    return '昨天觉得桌上有点暗，我带了盏灯。';
+  }
+  return '';
+}
+
 function startSession(opts) {
   const min = (opts && opts.minutes) || Number($('fMin').value) || 25;
   session = { startedAt: Date.now(), plannedMin: min, focusMs: 0,
-              awayCount: 0, distractCount: 0 };
+              awayCount: 0, distractCount: 0,
+              mode: opts && opts.mode === 'contract' ? 'contract' : 'companion' };
+  if (window.TZPoints) {
+    window.TZPoints.startSession({ plannedMin: min, mode: session.mode });
+    if (camOn && lastLabel) window.TZPoints.noteState(lastLabel, 0);
+  }
   $('stateText').textContent = '自习中';
   $('fMin').value = min;
   // 进了自习室就把摄像头这条线接上（用户没开摄像头也不影响其余部分）
   wsSend({ cmd: 'start' });
-  say('开始了，我也开始。', 3000);
+  say(deliverPendingItem() || '开始了，我也开始。', 3800);
 }
 function stopSession(reason) {
   if (!session) return;
+  const pointResult = window.TZPoints ? window.TZPoints.endSession(reason || 'manual') : null;
   const summary = {
     reason: reason || 'manual',
-    focusMin: Math.floor(session.focusMs / 60000) || Math.floor((Date.now() - session.startedAt) / 60000),
+    focusMin: pointResult ? pointResult.effectiveMin : Math.floor(session.focusMs / 60000),
     awayCount: session.awayCount,
     distractCount: session.distractCount,
-    plannedMin: session.plannedMin
+    plannedMin: session.plannedMin,
+    points: pointResult
   };
   session = null;
   $('stateText').textContent = '已结束';
@@ -957,13 +993,16 @@ function stopSession(reason) {
 setInterval(() => {
   if (!session) return;
   const m = Math.floor((Date.now() - session.startedAt) / 60000);
-  $('focusText').textContent = m;
-  $('coinText').textContent = Math.min(30, Math.floor(m / 25) * 3);
+  if (window.TZPoints) {
+    const p = window.TZPoints.tick();
+    if (p) session.focusMs = p.effectiveMs;
+  }
+  $('focusText').textContent = Math.floor(session.focusMs / 60000);
   if (m >= session.plannedMin) stopSession('planned');
 }, 1000);
 
-$('btnStart').addEventListener('click', startSession);
-$('btnStop').addEventListener('click', stopSession);
+$('btnStartDebug').addEventListener('click', startSession);
+$('btnStopDebug').addEventListener('click', stopSession);
 $('btnReload').addEventListener('click', () => loadModel());
 $('btnScene').addEventListener('click', () => applyScene(sceneIdx + 1));
 // 表情调试条：调表情时最好把身体冻住，不然动作会盖过表情
@@ -1004,6 +1043,7 @@ loadScenes().then((real) => {
   if (!real) console.log('[room] assets/scenes 里还没有背景图，先用 CSS 兜底');
 });
 loadModel();
+refreshOwned();
 
 // 用户不该为了用摄像头去手动开一个 Python 进程 —— 启动时自己拉起来。
 // 但摄像头本身默认不开，等用户点「开启」（隐私上的默认值）。
@@ -1071,6 +1111,8 @@ window.TZRoom = {
   endSession: (why) => stopSession(why || 'manual'),
   onSessionEnd: (fn) => sessionEndCbs.push(fn),
   sessionInfo: () => (session ? { ...session } : null),
+  cameraEnabled: () => camOn,
+  refreshOwned,
   scene: applyScene,
   scenes: () => SCENES.map(s => s.name),
   reloadScenes: () => loadScenes().then(() => applyScene(0)),
