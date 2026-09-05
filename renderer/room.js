@@ -459,6 +459,7 @@ function tick() {
   if (mixer && !frozen) mixer.update(dt);
   if (face) face.update(dt);       // 冻结时表情照常跑，这是冻结的意义
   if (!frozen) updateIdle(dt);
+  updatePose(dt);              // 姿势层压在动作之上，冻结时也照常混合
   if (vrm) vrm.update(dt);
   renderer.render(scene, camera);
 }
@@ -638,23 +639,64 @@ const POSE_CONV = {
   flipW: (q) => [-q[0],  q[1],  q[2], -q[3]]
 };
 
-async function applyPose(name, conv) {
+/* 当前挂着的姿势层。
+ * 姿势不能直接写死骨骼，有两个原因：
+ *   1. 直接 set 是瞬间切换，看着像卡帧
+ *   2. 更要命的是每帧 mixer.update() 都会把骨骼重写一遍，
+ *      直接 set 的姿势下一帧就没了（除非把动作冻住）
+ * 所以做成一层：每帧在 mixer 之后按权重 slerp 过去，权重自己渐入渐出。
+ */
+let poseLayer = null;     // { rot: [[node, THREE.Quaternion]], w, target, speed }
+const poseCache = new Map();
+
+async function loadPose(name) {
+  if (poseCache.has(name)) return poseCache.get(name);
+  const r = await fetch('../assets/poses/' + name + '.json');
+  const data = await r.json();
+  poseCache.set(name, data);
+  return data;
+}
+
+/**
+ * 套一个静态姿势，带渐变。
+ * @param name  assets/poses/<name>.json；传 null 或 '' 就是脱掉
+ * @param opts.seconds 渐变时长，默认 0.45 秒
+ * @param opts.conv    坐标系转换，默认 flipX（试出来对的那个）
+ */
+async function applyPose(name, opts) {
+  const o = opts || {};
   if (!vrm || !vrm.humanoid) return '模型还没加载';
+  if (!name) {                       // 脱掉：权重降到 0，降完自然消失
+    if (poseLayer) poseLayer.target = 0;
+    return '正在脱掉姿势';
+  }
   let data;
-  try {
-    const r = await fetch('../assets/poses/' + name + '.json');
-    data = await r.json();
-  } catch (e) { return '读不到 ' + name + '.json'; }
-  const f = POSE_CONV[conv || 'flipX'] || POSE_CONV.flipX;
-  let hit = 0;
+  try { data = await loadPose(name); }
+  catch (e) { return '读不到 ' + name + '.json'; }
+
+  const f = POSE_CONV[o.conv || 'flipX'] || POSE_CONV.flipX;
+  const rot = [];
   for (const bone in data) {
     const node = vrm.humanoid.getNormalizedBoneNode(bone);
     if (!node) continue;
     const q = f(data[bone]);
-    node.quaternion.set(q[0], q[1], q[2], q[3]);
-    hit++;
+    rot.push([node, new THREE.Quaternion(q[0], q[1], q[2], q[3])]);
   }
-  return '套上 ' + hit + ' 根骨骼（' + (conv || 'flipX') + '）';
+  if (!rot.length) return '这个模型没有对得上的骨骼';
+
+  const sec = Math.max(0.05, o.seconds ?? 0.45);
+  poseLayer = { rot, w: poseLayer ? poseLayer.w : 0, target: 1, speed: 1 / sec, name };
+  return '套上 ' + rot.length + ' 根骨骼，' + sec + ' 秒渐入';
+}
+
+/** 每帧混合。必须在 mixer.update() 之后跑，否则会被动画覆盖掉。 */
+function updatePose(dt) {
+  if (!poseLayer) return;
+  const L = poseLayer;
+  L.w += (L.target - L.w) * Math.min(1, dt * L.speed * 3.2);
+  if (L.target === 0 && L.w < 0.01) { poseLayer = null; return; }
+  if (L.w < 0.001) return;
+  for (const [node, q] of L.rot) node.quaternion.slerp(q, L.w);
 }
 
 /* ---------------- 对外事件 ----------------
@@ -1366,6 +1408,7 @@ window.TZRoom = {
   reactAs: react,
   shots,
   pose: applyPose,
+  poseOff: () => applyPose(null),
   on,          // 给 story.js 订阅事件
   tell,        // 给 story.js 说自定义台词
   voice: {
