@@ -33,10 +33,10 @@
   },
   {
     "id": "item_lamp",
-    "name": "暖光台灯",
+    "name": "复古台灯",
     "type": "item",
     "price": 120,
-    "description": "给夜里的桌子添一盏不刺眼的灯。",
+    "description": "金属灯罩，光是暖的时候桌子才像桌子。",
     "preview": "assets/items/lamp.png",
     "asset": "assets/items/lamp.png",
     "available": true,
@@ -84,7 +84,7 @@
     "available": true,
     "cells": [
       2,
-      2
+      1
     ]
   },
   {
