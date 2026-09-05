@@ -589,9 +589,22 @@ let cuteAt = 0;               // 下一次待机小插曲的时间
 function canReact() {
   return Date.now() - lastReactAt > LINK.reactCooldownSec * 1000;
 }
+// 反应名 → 记进事件时间线时用的类型
+const EVENT_KIND = {
+  disappoint: 'phone', lonely: 'away', sleepy: 'drowsy',
+  puzzled: 'covered', praise: 'praise', welcome: 'back'
+};
+
 function fire(name, line) {
   if (!canReact()) return false;
   lastReactAt = Date.now();
+  if (session && EVENT_KIND[name]) {
+    session.events.push({
+      t: Math.round((Date.now() - session.startedAt) / 1000),   // 距开场多少秒
+      kind: EVENT_KIND[name],
+      dur: Math.round(epDur)                                     // 触发时已经持续了多久
+    });
+  }
   react(name, line);
   return true;
 }
@@ -601,6 +614,10 @@ function onState(label, duration) {
   // 换段了：结算上一段
   if (label !== epLabel) {
     if (epLabel === 'away') lastAwaySec = epDur;
+    // 上一段结束了，把它的时长记到账上
+    if (session && epLabel && epDur > 0) {
+      session.byLabel[epLabel] = (session.byLabel[epLabel] || 0) + epDur;
+    }
     if (session) {
       if (label === 'away') session.awayCount++;
       if (label === 'phone' || label === 'drowsy') session.distractCount++;
@@ -932,7 +949,11 @@ const sessionEndCbs = [];
 function startSession(opts) {
   const min = (opts && opts.minutes) || Number($('fMin').value) || 25;
   session = { startedAt: Date.now(), plannedMin: min, focusMs: 0,
-              awayCount: 0, distractCount: 0 };
+              awayCount: 0, distractCount: 0,
+              // 每个状态累计待了多久（秒），比"次数"有用得多
+              byLabel: {},
+              // 触发过提醒的时刻，详情页的时间线就是它
+              events: [] };
   $('stateText').textContent = '自习中';
   $('fMin').value = min;
   // 进了自习室就把摄像头这条线接上（用户没开摄像头也不影响其余部分）
@@ -941,11 +962,22 @@ function startSession(opts) {
 }
 function stopSession(reason) {
   if (!session) return;
+  // 最后一段也要结算
+  if (epLabel && epDur > 0) {
+    session.byLabel[epLabel] = (session.byLabel[epLabel] || 0) + epDur;
+  }
+  const secs = session.byLabel;
   const summary = {
     reason: reason || 'manual',
-    focusMin: Math.floor(session.focusMs / 60000) || Math.floor((Date.now() - session.startedAt) / 60000),
+    startedAt: session.startedAt,
+    elapsedMin: Math.max(1, Math.round((Date.now() - session.startedAt) / 60000)),
+    focusMin: Math.round((secs.focus || 0) / 60),
+    awayMin: Math.round((secs.away || 0) / 60),
+    phoneMin: Math.round((secs.phone || 0) / 60),
+    drowsyMin: Math.round((secs.drowsy || 0) / 60),
     awayCount: session.awayCount,
     distractCount: session.distractCount,
+    events: session.events.slice(),
     plannedMin: session.plannedMin
   };
   session = null;

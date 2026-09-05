@@ -252,6 +252,9 @@
   .p5head .back{background:#111;color:#fff;border:0;padding:7px 16px;cursor:pointer;
     font-family:var(--sans);font-size:12.5px;transform:skewX(-10deg) skewY(1.4deg)}
   .p5head .back:hover{background:#fff;color:#9E1B25}
+  /* 标题条整体是 -1.4deg 的斜切，右端会被抬到视口外——右边那三个数字
+     以前就被削掉了一截。给它留出斜度需要的那点顶部空间。 */
+  #records .p5head{margin-top:22px;padding-top:20px}
 
   #records.veil{flex-direction:column}
   #recGrid{position:relative;z-index:2;display:grid;grid-template-columns:repeat(7,1fr);
@@ -310,6 +313,115 @@
   .p5-rec .tag.ok{background:#9E1B25;color:#fff}
   .p5-rec .tag.mid{background:#2a2a2f;color:#9a9aa2}
   #recDayList .empty{color:#6c6c74;font-size:13px;margin-top:16px}
+  .p5-rec{cursor:pointer;transition:background .12s,border-color .12s}
+  .p5-rec:hover{background:#242429;border-left-color:#ffd23f}
+  .p5-rec::after{content:'\203A';position:absolute;right:9px;color:#5a5a62;font-size:16px}
+  .p5-rec{position:relative;padding-right:24px}
+
+  /* ---------------- 单场详情 / 月度总结 弹层 ----------------
+     日历右边已经被"某一天"占掉了，再挤第三栏会两边都看不清。
+     所以这两个走居中弹层：一次只看一件事。 */
+  .p5modal{position:absolute;inset:0;z-index:20;display:flex;align-items:center;
+    justify-content:center;background:rgba(6,6,8,.72);opacity:0;pointer-events:none;
+    transition:opacity .18s}
+  .p5modal.on{opacity:1;pointer-events:auto}
+  .p5modal > .card{position:relative;width:min(560px,86%);max-height:90%;overflow-y:auto;
+    background:#131315;padding:26px 30px 30px;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 22px),calc(100% - 22px) 100%,0 100%);
+    box-shadow:10px 10px 0 rgba(0,0,0,.55);
+    transform:skewX(-2deg) translateY(18px) scale(.97);
+    transition:transform .26s cubic-bezier(.16,1.1,.3,1)}
+  .p5modal.on > .card{transform:skewX(-2deg) translateY(0) scale(1)}
+  .p5modal .card > *{transform:skewX(2deg)}
+  .p5modal > .card::-webkit-scrollbar{width:7px}
+  .p5modal > .card::-webkit-scrollbar-track{background:#0b0b0d}
+  .p5modal > .card::-webkit-scrollbar-thumb{background:#9E1B25}
+  .p5modal > .card::-webkit-scrollbar-thumb:hover{background:#ffd23f}
+  .p5modal .cls{position:absolute;right:12px;top:10px;background:transparent;border:0;
+    color:#6c6c74;font-size:22px;cursor:pointer;z-index:3}
+  .p5modal .cls:hover{color:#fff}
+  .p5modal .ttl{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+  .p5modal .ttl b{font-family:Impact,monospace;font-size:40px;color:#9E1B25;
+    text-shadow:2px 2px 0 #000;line-height:1}
+  .p5modal .ttl small{font-size:12px;color:#8b8b92;letter-spacing:.1em}
+  .p5modal h5{font-family:Impact,var(--sans);font-size:13px;letter-spacing:.16em;
+    color:#fff;background:#9E1B25;display:inline-block;padding:2px 12px 3px;
+    transform:skewX(-8deg);margin:16px 0 9px}
+  .p5modal .empty{color:#6c6c74;font-size:13px}
+  .p5modal .note{margin-top:14px;font-size:12.5px;color:#8b8b92;border-left:3px solid #ffd23f;
+    padding-left:10px}
+  .p5modal .note b{color:#ffd23f}
+
+  /* 大数字 */
+  .p5big{background:#0e0e10;padding:14px 18px;border-left:4px solid #9E1B25}
+  .p5big .v{font-family:Impact,monospace;font-size:52px;color:#ffd23f;line-height:1}
+  .p5big .u{font-size:13px;color:#a6a6ae;margin-left:8px;letter-spacing:.08em}
+  .p5big .sub{display:block;font-size:11.5px;color:#6c6c74;margin-top:4px}
+
+  /* 横条 */
+  .p5bars{margin-top:12px}
+  .p5bars .bar{display:grid;grid-template-columns:36px 1fr 46px;gap:10px;align-items:center;
+    margin-top:7px}
+  .p5bars .lb{font-size:11.5px;color:#8b8b92}
+  .p5bars .tr{height:13px;background:#0e0e10;transform:skewX(-8deg);overflow:hidden;display:block}
+  .p5bars .tr i{display:block;height:100%;width:0;animation:p5grow .5s cubic-bezier(.2,1,.3,1) both}
+  .p5bars .f-focus{background:#9E1B25}
+  .p5bars .f-away{background:#4a4a86}
+  .p5bars .f-phone{background:#ffd23f}
+  .p5bars .vv{font-family:Impact,monospace;font-size:15px;color:#fff;text-align:right}
+  @keyframes p5grow{from{width:0 !important}}
+
+  /* 小方块统计 */
+  .p5grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .p5grid4 .q{background:#0e0e10;padding:12px 10px;transform:skewX(-5deg);
+    border-bottom:3px solid #9E1B25;text-align:center;
+    animation:p5in .3s cubic-bezier(.16,1.1,.3,1) both}
+  .p5grid4 .q > *{display:block;transform:skewX(5deg)}
+  .p5grid4 .q:nth-child(2){animation-delay:60ms}
+  .p5grid4 .q:nth-child(3){animation-delay:120ms}
+  .p5grid4 .q:nth-child(4){animation-delay:180ms}
+  .p5grid4 .v{font-family:Impact,monospace;font-size:30px;color:#ffd23f;line-height:1.05}
+  .p5grid4 .u{font-size:10.5px;color:#8b8b92}
+  .p5grid4 .k{font-size:11px;color:#c9c9d0;margin-top:5px;letter-spacing:.06em}
+
+  /* 标签 */
+  .p5chips{display:flex;flex-wrap:wrap;gap:7px}
+  .p5chips .chip{font-size:11.5px;color:#7c7c85;background:#0e0e10;padding:4px 10px;
+    transform:skewX(-8deg);border-left:3px solid #2a2a2f}
+  .p5chips .chip b{font-family:Impact,monospace;font-size:16px;margin-left:4px}
+  .p5chips .bad{color:#e6e6ea;border-left-color:#9E1B25}
+  .p5chips .bad b{color:#ff5b5b}
+  .p5chips .warn{color:#e6e6ea;border-left-color:#ffd23f}
+  .p5chips .warn b{color:#ffd23f}
+  .p5chips .good{color:#e6e6ea;border-left-color:#3fb27f}
+  .p5chips .good b{color:#3fb27f}
+
+  /* 事件时间线 */
+  .p5tl{border-left:2px solid #2a2a2f;margin-left:6px;padding-left:0}
+  .p5tl .ev{position:relative;display:grid;grid-template-columns:52px 1fr auto;gap:10px;
+    align-items:center;padding:6px 10px 6px 16px;margin-top:5px;background:#1a1a1d;
+    transform:skewX(-5deg);animation:p5in .28s cubic-bezier(.16,1.1,.3,1) both}
+  .p5tl .ev > *{transform:skewX(5deg)}
+  .p5tl .ev::before{content:'';position:absolute;left:-7px;top:50%;width:9px;height:9px;
+    margin-top:-4px;background:#5a5a62;transform:skewX(5deg) rotate(45deg)}
+  .p5tl .ev.bad::before{background:#9E1B25}
+  .p5tl .ev.warn::before{background:#ffd23f}
+  .p5tl .ev.good::before{background:#3fb27f}
+  .p5tl .at{font-family:Impact,monospace;font-size:14px;color:#8b8b92}
+  .p5tl .wh{font-size:12.5px;color:#e6e6ea}
+  .p5tl .dr{font-size:11px;color:#6c6c74}
+
+  /* 每天的柱子 */
+  .p5days{display:flex;align-items:flex-end;gap:3px;height:70px;background:#0e0e10;
+    padding:8px 10px 16px}
+  .p5days .d{position:relative;flex:1;height:100%;display:flex;align-items:flex-end}
+  .p5days .d i{display:block;width:100%;background:#2a2a2f;
+    animation:p5rise .4s cubic-bezier(.2,1,.3,1) both}
+  .p5days .d.on i{background:#9E1B25}
+  .p5days .d.on:hover i{background:#ffd23f}
+  .p5days .d em{position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);
+    font-size:9px;color:#5a5a62;font-style:normal}
+  @keyframes p5rise{from{height:0 !important}}
 
 
   /* ---------------- P5 外壳：主界面 / 准备页 ----------------
@@ -466,6 +578,7 @@
         <span class="p5stat"><b id="recTotalMin">0</b>MIN</span>
         <span class="p5stat"><b id="recTotalTimes">0</b>次</span>
         <span class="p5stat"><b id="recTotalDays">0</b>天</span>
+        <button class="back" id="recSumBtn">本月总结</button>
         <button class="back" id="recBack">返回</button>
       </span>
     </div>
@@ -477,6 +590,22 @@
       <button class="cls" id="recDetailClose">×</button>
         <div id="recDayTitle"></div>
         <div id="recDayList"></div>
+      </div>
+    </div>
+
+    <div class="p5modal" id="recSession">
+      <div class="card">
+        <button class="cls" id="recSessionClose">&times;</button>
+        <div class="ttl" id="recSessionTitle"></div>
+        <div id="recSessionBody"></div>
+      </div>
+    </div>
+
+    <div class="p5modal" id="recSummary">
+      <div class="card">
+        <button class="cls" id="recSumClose">&times;</button>
+        <div class="ttl" id="recSumTitle"></div>
+        <div id="recSumBody"></div>
       </div>
     </div>
   </div>

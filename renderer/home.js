@@ -134,10 +134,16 @@ function finish(summary) {
     const names = window.TZRoom.scenes();
     recordStore.add({
       endedAt: Date.now(),
+      startedAt: s.startedAt ?? (Date.now() - (s.elapsedMin ?? 0) * 60000),
+      elapsedMin: s.elapsedMin ?? 0,
       focusMin: s.focusMin ?? 0,
+      awayMin: s.awayMin ?? 0,
+      phoneMin: s.phoneMin ?? 0,
+      drowsyMin: s.drowsyMin ?? 0,
       plannedMin: s.plannedMin ?? state.minutes,
       awayCount: s.awayCount ?? 0,
       distractCount: s.distractCount ?? 0,
+      events: s.events ?? [],
       reason: s.reason || 'manual',
       scene: (names[state.scene] || '').replace(/^\d+-/, '')
     });
