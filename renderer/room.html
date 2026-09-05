@@ -22,6 +22,11 @@
     background-image:radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
     background-size:3px 3px}
   #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+  /* 桌沿上方的接触阴影：没有它，人像是贴在木板前面的一张纸。
+     压暗躯干靠近桌面的那一段，才读得出"她坐在桌子后面"。 */
+  #deskAO{position:absolute;left:0;right:0;pointer-events:none;display:none;
+    background:radial-gradient(46% 128% at 50% 106%,
+      rgba(0,0,0,.66) 0%, rgba(0,0,0,.34) 46%, rgba(0,0,0,.10) 72%, transparent 100%)}
   /* 前景桌面：同一张图的底部，盖在角色之上，制造"人在桌子后面"的遮挡 */
   #fg{position:absolute;inset:0;pointer-events:none;background-size:cover;
       background-position:center;display:none}
@@ -505,6 +510,7 @@
   <div id="bgTint"></div>
   <div id="bgGrain"></div>
   <canvas id="cv"></canvas>
+  <div id="deskAO"></div>
   <div id="fg"></div>
   <div id="desk"></div>
   <div id="lampGlow"></div>

@@ -42,6 +42,8 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  // 桌面的放大倍数是按视口高算的，窗口一变就得重算
+  if (SCENES && SCENES.length) sizeDesk(SCENES[sceneIdx]);
 }
 window.addEventListener('resize', resize);
 
@@ -203,7 +205,9 @@ function playClip(name) {
 // 锚点用胸口而不是胯：坐姿时大腿会在屏幕上翻到胯以上，
 // 按胯取景会让桌沿挡不住腿和裙子。按胸口取景，桌沿以下全被遮住，
 // 画面就是"隔着桌子看到对面的人"——最自然的构图。
-const framing = { anchorAt: 0.88, headAt: 0.20, headroom: 0.12 };
+// anchorAt 是胸口锚点落在画面纵向的位置。桌沿在 0.68，锚点压到 0.78 ——
+// 胸口以下被桌子吃掉一截，看着就是"她坐在桌子后面"，而不是浮在桌前。
+const framing = { anchorAt: 0.78, headAt: 0.14, headroom: 0.12 };
 
 function frameCamera() {
   const anchorBone = bones && (bones.chest || bones.spine || bones.hips);
@@ -868,12 +872,21 @@ const comp = { blur: 1.5, brightness: 0.86, saturate: 0.95, tint: 'rgba(18,22,28
 // 前景桌面的上沿在画面纵向的位置。宁可切低一点（数值大），
 // 切高了会把地板也盖到角色腿上，露馅。
 // 每张图的桌沿高度不同，量出来的写进这张表，其余用默认值。
-const FG_TOP_DEFAULT = 0.87;
-const FG_TOP = {
-  '01-自习室夜': 0.85,
-  '03-咖啡馆': 0.88
+//
+// 每张图里桌沿（木面和地面的分界线）在原图纵向的位置，量出来的。
+// 这条线以下是桌面，以上是房间。
+const FG_EDGE_DEFAULT = 0.86;
+const FG_EDGE = {
+  '01-自习室夜': 0.852,
+  '02-图书馆':   0.866,
+  '03-咖啡馆':   0.893,
+  '04-卧室夜':   0.900   // 自动量出来是 0.705，那是床沿不是桌沿，手动改
 };
-const fgTopOf = (name) => FG_TOP[name] ?? FG_TOP_DEFAULT;
+// 把桌沿抬到画面的哪个高度。原图只有 13%~15% 的桌面，读起来像个下边框；
+// 抬到 0.68 就有三分之一画面是桌子，人被切在胸口下方 ——
+// 这就是"和她拼一张桌子"的观感，顺带把腿彻底藏了。
+const DESK = { screenTop: 0.68, aoHeight: 0.12 };
+const fgEdgeOf = (name) => FG_EDGE[name] ?? FG_EDGE_DEFAULT;
 
 function applyComp() {
   const bg = $('bg');
@@ -897,6 +910,34 @@ async function loadScenes() {
   return false;
 }
 
+/* 前景桌面：把原图底部那条桌面放大、贴着底边对齐，
+ * 让桌沿落在 DESK.screenTop 上。
+ *
+ * 背景层是 cover，前景层是放大过的同一张图，两者不再对齐 —— 这是故意的：
+ * 放大后的桌子读作"离你更近的那张桌子"，正好就是你自己坐的这张。
+ * 只要前景完全盖住背景里那张桌子（放大后必然盖住），就不会露出两条桌沿。 */
+function sizeDesk(s) {
+  const fg = $('fg'), box = fg.getBoundingClientRect();
+  if (!box.height) return;
+  const edge = fgEdgeOf(s.name);          // 桌沿在原图的纵向位置
+  const img = { w: 1920, h: 1081 };       // 四张场景图都是这个尺寸
+
+  // 贴底对齐时，桌沿到底边的距离 = 渲染高度 × (1 - edge)
+  // 要它等于屏幕上的 (1 - screenTop) × 视口高
+  const need = (1 - DESK.screenTop) * box.height / (1 - edge);
+  const scale = need / img.h;
+  fg.style.backgroundSize = `${(img.w * scale / box.width * 100).toFixed(1)}% auto`;
+  fg.style.backgroundPosition = 'center bottom';
+  fg.style.clipPath = `inset(${(DESK.screenTop * 100).toFixed(1)}% 0 0 0)`;
+  fg.style.filter = `brightness(${(comp.brightness * 0.94).toFixed(2)}) saturate(${comp.saturate})`;
+
+  // 接触阴影：紧贴桌沿往上化开
+  const ao = $('deskAO');
+  ao.style.display = 'block';
+  ao.style.bottom = `${((1 - DESK.screenTop) * 100).toFixed(1)}%`;
+  ao.style.height = `${(DESK.aoHeight * 100).toFixed(1)}%`;
+}
+
 function applyScene(i) {
   if (!SCENES.length) return;
   sceneIdx = (i + SCENES.length) % SCENES.length;
@@ -911,12 +952,14 @@ function applyScene(i) {
   const fg = $('fg');
   if (hasImg) {
     // 同一张图、同样的 cover 定位 → 前景层和背景层天然对齐
-    fg.style.display = '';
+    // 注意是 'block' 不是 ''：#fg 的 CSS 基础规则是 display:none，
+    // 清空内联样式会回落回 none —— 这层遮挡以前一直没生效就是栽在这儿。
+    fg.style.display = 'block';
     fg.style.backgroundImage = `url("${s.img}")`;
-    fg.style.clipPath = `inset(${(fgTopOf(s.name) * 100).toFixed(1)}% 0 0 0)`;
-    fg.style.filter = `brightness(${comp.brightness}) saturate(${comp.saturate})`;
+    sizeDesk(s);
   } else {
     fg.style.display = 'none';
+    $('deskAO').style.display = 'none';
   }
 
   if (hasImg) {
@@ -1109,7 +1152,10 @@ window.TZRoom = {
   // 实时调合成参数，调好了我把数值固化进代码
   comp: (patch) => { Object.assign(comp, patch || {}); applyComp(); return { ...comp }; },
   frame: (patch) => { Object.assign(framing, patch || {}); frameCamera(); return { ...framing }; },
-  fgTop: (v) => { $('fg').style.clipPath = `inset(${(v*100).toFixed(1)}% 0 0 0)`; return v; },
+  deskTop: (v) => { DESK.screenTop = v; applyScene(sceneIdx); return v; },
+  deskAO:  (v) => { DESK.aoHeight = v; applyScene(sceneIdx); return v; },
+  anchorAt: (v) => { framing.anchorAt = v; frameCamera(); return v; },
+  headAt: (v) => { framing.headAt = v; frameCamera(); return v; },
   info: () => ({
     loaded: !!vrm,
     mixamo: useMixamo,
