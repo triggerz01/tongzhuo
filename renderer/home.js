@@ -9,6 +9,8 @@
  */
 'use strict';
 
+import { initRecords, recordStore } from './records.js';
+
 const $ = (id) => document.getElementById(id);
 
 const DURATIONS = [
@@ -63,6 +65,7 @@ function show(v) {
   view = v;
   $('home').classList.toggle('on', v === 'home');
   $('setup').classList.toggle('on', v === 'setup');
+  if (v !== 'home') $('records').classList.remove('on');
   document.body.classList.toggle('in-session', v === 'session');
   videoPlaying(v !== 'session');
   // 主界面和准备页都不需要角色说话
@@ -126,6 +129,19 @@ function begin() {
 function finish(summary) {
   show('home');
   const s = summary || {};
+  // 每场自习记一条，日历就是从这儿长出来的
+  try {
+    const names = window.TZRoom.scenes();
+    recordStore.add({
+      endedAt: Date.now(),
+      focusMin: s.focusMin ?? 0,
+      plannedMin: s.plannedMin ?? state.minutes,
+      awayCount: s.awayCount ?? 0,
+      distractCount: s.distractCount ?? 0,
+      reason: s.reason || 'manual',
+      scene: (names[state.scene] || '').replace(/^\d+-/, '')
+    });
+  } catch (e) { console.warn('[home] 记录写入失败', e); }
   $('homeSummary').classList.add('on');
   $('sumMinutes').textContent = s.focusMin ?? 0;
   $('sumAway').textContent = s.awayCount ?? 0;
@@ -156,6 +172,7 @@ function init() {
   });
 
   initVideo();
+  initRecords();
   window.TZRoom.onSessionEnd(finish);
   setInterval(() => { if (view === 'setup') paintCamStatus(); }, 1500);
   show('home');

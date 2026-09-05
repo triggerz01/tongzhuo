@@ -215,6 +215,102 @@
     cursor:pointer;border-radius:10px}
   #quitBar button:hover{color:#fff}
 
+
+  /* ---------------- 学习记录：Persona 5 那一路 ----------------
+     全是 CSS 几何：斜切、锯齿边、半调网点、重字重、错峰飞入。
+     没有用任何图片素材。数字用 Impact（Windows 自带，压缩重字重，
+     和 P5 的显示字最接近），中文用微软雅黑 Bold。 */
+  #records{z-index:32;background:#0a0a0c;padding:0;overflow:hidden}
+  #records .p5bg{position:absolute;inset:-20%;pointer-events:none;
+    background:
+      repeating-linear-gradient(115deg, rgba(158,27,37,.16) 0 3px, transparent 3px 62px),
+      radial-gradient(circle at 30% 20%, rgba(158,27,37,.22), transparent 55%),
+      #0a0a0c}
+  #records .p5dots{position:absolute;inset:0;pointer-events:none;opacity:.35;
+    background-image:radial-gradient(circle, rgba(255,255,255,.09) 1px, transparent 1.4px);
+    background-size:6px 6px}
+
+  .p5head{position:relative;z-index:2;display:flex;align-items:center;gap:14px;
+    padding:26px 26px 22px;background:#9E1B25;transform:skewY(-1.4deg);
+    transform-origin:left top;margin:-16px -12px 0;flex:0 0 auto;
+    clip-path:polygon(0 0,100% 0,100% 78%,88% 100%,0 94%)}
+  .p5head > *{transform:skewY(1.4deg)}
+  .p5head h2{margin:0;font-family:Impact,'Arial Black',var(--sans);font-size:30px;
+    letter-spacing:.06em;color:#fff;font-weight:400;
+    text-shadow:3px 3px 0 #000}
+  .p5head .mo{font-family:Impact,'Arial Black',monospace;font-size:26px;color:#111;
+    background:#fff;padding:1px 12px;transform:skewX(-10deg) skewY(1.4deg);letter-spacing:.04em}
+  .p5head .nav{display:flex;gap:6px;margin-left:6px}
+  .p5head .nav button{background:#111;color:#fff;border:0;width:30px;height:30px;
+    font-family:Impact,monospace;font-size:17px;cursor:pointer;transform:skewX(-10deg) skewY(1.4deg)}
+  .p5head .nav button:hover{background:#fff;color:#9E1B25}
+  .p5head .grow{margin-left:auto;display:flex;gap:18px;align-items:baseline;
+    padding-right:6px}
+  .p5stat{font-family:var(--sans);font-size:11px;color:rgba(255,255,255,.85);letter-spacing:.1em}
+  .p5stat b{font-family:Impact,monospace;font-size:24px;color:#fff;margin-right:3px;
+    text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+  .p5head .back{background:#111;color:#fff;border:0;padding:7px 16px;cursor:pointer;
+    font-family:var(--sans);font-size:12.5px;transform:skewX(-10deg) skewY(1.4deg)}
+  .p5head .back:hover{background:#fff;color:#9E1B25}
+
+  #records.veil{flex-direction:column}
+  #recGrid{position:relative;z-index:2;display:grid;grid-template-columns:repeat(7,1fr);
+    gap:7px;padding:22px 26px 20px;align-content:start}
+  .p5-wd{font-family:Impact,var(--sans);font-size:14px;color:#fff;text-align:center;
+    padding:4px 0;background:#151517;transform:skewX(-8deg);letter-spacing:.1em}
+  .p5-wd.end{background:#9E1B25}
+  .p5-cell{position:relative;aspect-ratio:1/.82;background:#141416;border:0;cursor:pointer;
+    transform:skewX(-8deg) rotate(var(--tilt,0deg));padding:0;overflow:hidden;
+    animation:p5in .34s cubic-bezier(.16,1.1,.3,1) both;
+    box-shadow:2px 2px 0 rgba(0,0,0,.7)}
+  .p5-cell.pad{background:transparent;box-shadow:none;pointer-events:none;animation:none}
+  .p5-cell .n{position:absolute;left:7px;top:2px;font-family:Impact,monospace;font-size:21px;
+    color:#4a4a4f;transform:skewX(8deg);line-height:1.2}
+  .p5-cell.has{background:#9E1B25}
+  .p5-cell.has::after{content:'';position:absolute;inset:0;
+    background-image:radial-gradient(circle, rgba(0,0,0,.30) 1px, transparent 1.5px);
+    background-size:5px 5px;pointer-events:none}
+  .p5-cell.has .n{color:#fff;text-shadow:2px 2px 0 rgba(0,0,0,.45)}
+  .p5-cell .badge{position:absolute;right:5px;top:4px;z-index:2;background:#fff;color:#9E1B25;
+    font-family:Impact,monospace;font-size:13px;padding:0 6px;transform:skewX(8deg)}
+  .p5-cell .min{position:absolute;right:6px;bottom:4px;z-index:2;color:#fff;font-size:11px;
+    font-family:Impact,monospace;transform:skewX(8deg);opacity:.9}
+  .p5-cell:hover{background:#fff}
+  .p5-cell:hover .n{color:#9E1B25}
+  .p5-cell.today{outline:2px solid #ffd23f;outline-offset:-2px}
+  .p5-cell.sel{background:#fff}
+  .p5-cell.sel .n{color:#9E1B25}
+  @keyframes p5in{from{opacity:0;transform:skewX(-8deg) translate(-26px,14px) rotate(-6deg)}
+                  to{opacity:1;transform:skewX(-8deg) rotate(var(--tilt,0deg))}}
+
+  /* 面板挤占空间，不盖住日历 —— 之前浮在上面会把右边两列和顶部按钮全遮掉 */
+  .p5body{position:relative;z-index:2;flex:1;display:flex;min-height:0;overflow:hidden}
+  #recGrid{flex:1;min-width:0;overflow-y:auto}
+  #recDetail{position:relative;flex:0 0 0;width:0;opacity:0;background:#111113;
+    transition:flex-basis .32s cubic-bezier(.2,1,.3,1), width .32s cubic-bezier(.2,1,.3,1), opacity .2s;
+    clip-path:polygon(7% 0,100% 0,100% 100%,0 100%);
+    box-shadow:-10px 0 30px rgba(0,0,0,.6);overflow:hidden}
+  #recDetail.on{flex:0 0 340px;width:340px;opacity:1;padding:22px 20px 22px 34px;overflow-y:auto}
+  #recDayTitle{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+  #recDayTitle b{font-family:Impact,monospace;font-size:38px;color:#9E1B25;
+    text-shadow:2px 2px 0 #000}
+  #recDayTitle small{font-size:12px;color:#8b8b92;letter-spacing:.1em}
+  #recDetail .cls{position:absolute;right:14px;top:14px;background:transparent;border:0;
+    color:#6c6c74;font-size:19px;cursor:pointer}
+  #recDetail .cls:hover{color:#fff}
+  .p5-rec{display:grid;grid-template-columns:auto auto 1fr auto;gap:10px;align-items:center;
+    background:#1a1a1d;padding:9px 11px;margin-top:9px;transform:skewX(-5deg);
+    animation:p5in .3s cubic-bezier(.16,1.1,.3,1) both;border-left:3px solid #9E1B25}
+  .p5-rec > *{transform:skewX(5deg)}
+  .p5-rec .tm{font-family:Impact,monospace;font-size:15px;color:#fff}
+  .p5-rec .mi{font-size:12px;color:#a6a6ae}
+  .p5-rec .mi b{font-family:Impact,monospace;font-size:19px;color:#ffd23f;margin-right:2px}
+  .p5-rec .pl{font-size:11.5px;color:#7c7c85}
+  .p5-rec .tag{font-size:10.5px;padding:1px 7px;letter-spacing:.06em}
+  .p5-rec .tag.ok{background:#9E1B25;color:#fff}
+  .p5-rec .tag.mid{background:#2a2a2f;color:#9a9aa2}
+  #recDayList .empty{color:#6c6c74;font-size:13px;margin-top:16px}
+
   #hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     text-align:center;max-width:70%;line-height:1.9;font-size:14px;color:#9aa3ab}
   #hint code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:3px;
@@ -276,7 +372,7 @@
     <p class="tag">它不会来查你。它只是一直在。</p>
     <div class="acts">
       <button id="btnStart" class="bigBtn">开始自习</button>
-      <button class="ghostBtn" disabled>学习记录（还没做）</button>
+      <button id="btnRecords" class="ghostBtn">学习记录</button>
     </div>
     <div id="homeSummary">
       <h4 id="sumTitle">这一场结束了</h4>
@@ -284,6 +380,34 @@
         <span>专注 <b id="sumMinutes">0</b> 分钟</span>
         <span>离席 <b id="sumAway">0</b> 次</span>
         <span>走神 <b id="sumDistract">0</b> 次</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="records" class="veil">
+    <div class="p5bg"></div><div class="p5dots"></div>
+
+    <div class="p5head">
+      <h2>RECORDS</h2>
+      <span class="mo" id="recMonth">—</span>
+      <span class="nav">
+        <button id="recPrev">‹</button><button id="recNext">›</button>
+      </span>
+      <span class="grow">
+        <span class="p5stat"><b id="recTotalMin">0</b>MIN</span>
+        <span class="p5stat"><b id="recTotalTimes">0</b>次</span>
+        <span class="p5stat"><b id="recTotalDays">0</b>天</span>
+        <button class="back" id="recBack">返回</button>
+      </span>
+    </div>
+
+    <div class="p5body">
+      <div id="recGrid"></div>
+
+      <div id="recDetail">
+      <button class="cls" id="recDetailClose">×</button>
+        <div id="recDayTitle"></div>
+        <div id="recDayList"></div>
       </div>
     </div>
   </div>
