@@ -45,6 +45,8 @@
   .topbar .grow{margin-left:auto;display:flex;gap:14px;align-items:center}
   .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:11px;
     background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+  #deltaText.up{color:#6fd3a0}
+  #deltaText.down{color:#ff8b8b}
   .badge b{color:#fff;font-weight:600}
   .camctl{gap:8px}
   .camctl button{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
@@ -520,7 +522,10 @@
   body.debug .dock:not(#dbgBar){display:flex}
   body:not(.in-session) .topbar{display:none}
   body.debug .topbar{display:flex}
-  #quitBar{position:absolute;top:12px;right:14px;z-index:6;display:none}
+  /* 「结束这一场」浮在顶栏右上角，会压住最右边那个徽章。
+     给顶栏留出这个按钮的宽度，两边就不打架了。 */
+  body.in-session .topbar{padding-right:126px}
+  #quitBar{position:absolute;top:11px;right:14px;z-index:7;display:none}
   body.in-session #quitBar{display:block}
   #quitBar button{padding:5px 12px;background:rgba(0,0,0,.5);color:#c9d1d8;
     border:1px solid rgba(255,255,255,.18);font-family:var(--mono);font-size:11px;
@@ -892,7 +897,8 @@
     <span class="badge">状态 <b id="stateText">未开始</b></span>
     <div class="grow">
       <span class="badge">专注 <b id="focusText">0</b> 分钟</span>
-      <span class="badge">今日 <b id="coinText">0</b> / 30 枚</span>
+      <span class="badge">专注星 <b id="coinText">0</b></span>
+      <span class="badge">本场 <b id="deltaText">0</b></span>
     </div>
   </div>
 

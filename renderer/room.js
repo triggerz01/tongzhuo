@@ -744,6 +744,11 @@ function scheduleCute() {
   cuteAt = Date.now() + (a + Math.random() * (b - a)) * 60000;
 }
 
+/* 用户是不是想要画中人。收工时会把画中人关掉（否则摄像头一暂停，
+   最后一帧就冻在右下角，看着像一张照片粘在那儿），
+   但下一场开始时要自动开回来 —— 关它是我们的技术决定，不是用户的意思。 */
+let pipWanted = false;
+
 function setPip(on) {
   pipOn = !!on;
   $('pip').hidden = !pipOn;
@@ -1074,6 +1079,7 @@ function startSession(opts) {
   $('fMin').value = min;
   // 进了自习室就把摄像头这条线接上（用户没开摄像头也不影响其余部分）
   wsSend({ cmd: 'start' });
+  if (pipWanted && !pipOn) setPip(true);
   speak('sessionStart', 3.2);
 }
 function stopSession(reason) {
@@ -1113,6 +1119,9 @@ function stopSession(reason) {
   const spoken = speak(planned ? 'sessionFinish' : 'sessionEarlyEnd', 3.2);
   summary.line = spoken ? spoken.text : '';
   wsSend({ cmd: 'pause' });          // 收工就把摄像头放开
+  // 摄像头一暂停，画中人的最后一帧会冻在右下角，看着像一张照片粘住了。
+  // 关掉它，但 pipWanted 留着 —— 下一场开始会自动开回来。
+  if (pipOn) setPip(false);
   greeted = false;
   sessionEndCbs.forEach(fn => { try { fn(summary); } catch (e) { console.error(e); } });
 }
@@ -1120,7 +1129,13 @@ setInterval(() => {
   if (!session) return;
   const m = Math.floor((Date.now() - session.startedAt) / 60000);
   $('focusText').textContent = m;
-  $('coinText').textContent = Math.min(30, Math.floor(m / 25) * 3);
+  if (window.TZPoints) {
+    const sn = window.TZPoints.snapshot();
+    $('coinText').textContent = sn.balance;
+    const d = sn.session ? sn.session.delta : 0;
+    $('deltaText').textContent = (d > 0 ? '+' : '') + d;
+    $('deltaText').className = d > 0 ? 'up' : (d < 0 ? 'down' : '');
+  }
   if (m >= session.plannedMin) stopSession('planned');
 }, 1000);
 
@@ -1182,8 +1197,8 @@ document.querySelectorAll('[data-mode]').forEach(b => {
     wsSend({ cmd: 'mode', mode: calibMode });
   });
 });
-$('btnPip').addEventListener('click', () => setPip(!pipOn));
-$('pipClose').addEventListener('click', () => setPip(false));
+$('btnPip').addEventListener('click', () => { pipWanted = !pipOn; setPip(pipWanted); });
+$('pipClose').addEventListener('click', () => { pipWanted = false; setPip(false); });
 $('btnPose').addEventListener('click', () => {
   idle.action = { def: pickAction(), t: 0 };
   say('（测试动作：' + idle.action.def.name + '）', 1800);
