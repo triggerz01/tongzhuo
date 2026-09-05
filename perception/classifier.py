@@ -50,6 +50,14 @@ class Classifier:
         self.label_since = time.time()
         self._fired_episode = False
 
+    def reset_episode(self) -> None:
+        """把当前这一段的计时清零。
+
+        准备页上摄像头可以先开着看画面，但那段时间不该算进自习里 ——
+        不清零的话，一进自习室"专注"就已经是 53 秒了。"""
+        self.label_since = time.time()
+        self._fired_episode = False
+
     # ---------------- 基线标定 ----------------
 
     def start_calibration(self, seconds: float = 15.0) -> None:

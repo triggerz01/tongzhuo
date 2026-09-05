@@ -63,13 +63,14 @@ function videoPlaying(on) {
 }
 
 /* ---------------- 界面切换 ---------------- */
-let view = 'home';   // home | setup | settings | session
+let view = 'home';   // home | setup | calib | settings | store | session
 
 function show(v) {
   view = v;
   $('home').classList.toggle('on', v === 'home');
   $('setup').classList.toggle('on', v === 'setup');
   $('settings').classList.toggle('on', v === 'settings');
+  $('calib').classList.toggle('on', v === 'calib');
   if (v !== 'settle') $('settle').classList.remove('on');
   if (v !== 'store') $('store').classList.remove('on');
   if (v !== 'home') $('records').classList.remove('on');
@@ -172,7 +173,9 @@ function init() {
     state.minutes = Number($('durCustom').value) || state.minutes;
     document.querySelectorAll('.durCard').forEach(c => c.classList.remove('on'));
   });
-  $('setupCalib').addEventListener('click', () => $('btnCalib').click());
+  // 校准是准备流程里的一步：准备一下 → 校准位置 → 回到准备一下 → 进入自习室
+  $('setupCalib').addEventListener('click', () => { show('calib'); window.TZRoom.calib(); });
+  window.TZRoom.onCalibExit(() => { if (view === 'calib') show('setup'); });
   $('setupCamBtn').addEventListener('click', () => { $('btnCam').click(); setTimeout(paintCamStatus, 900); });
   $('btnQuitSession').addEventListener('click', () => window.TZRoom.endSession('manual'));
 

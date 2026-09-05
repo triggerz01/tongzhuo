@@ -682,6 +682,9 @@ function fire(name, line) {
 
 /** 每条 state 消息都会走这里。duration 由感知层给，是当前标签的连续秒数。 */
 function onState(label, duration) {
+  // 没在自习就只更新界面，不做反应也不记账。
+  // 准备页上摄像头可以先开着对位置，但她不该在那儿就开始夸你或者念你。
+  if (!session) { epLabel = label; epDur = duration; return; }
   // 换段了：结算上一段
   if (label !== epLabel) {
     if (epLabel === 'away') lastAwaySec = epDur;
@@ -897,9 +900,12 @@ function renderOutline() {
     b.classList.toggle('on', b.getAttribute('data-mode') === calibMode));
 }
 
+/* 校准现在是一个界面，显隐由 home.js 的 show() 统一管
+   （和设置页、商店一样）。这里只负责感知层那一半。 */
+let onCalibExit = null;
+
 function openCalib() {
   calibOpen = true;
-  $('calib').classList.add('on');
   renderOutline();
   $('calibMsg').textContent = '对好位置后点右边，保持姿势 15 秒';
   if (!wsSend({ cmd: 'preview', on: true })) {
@@ -909,11 +915,12 @@ function openCalib() {
 
 function closeCalib() {
   calibOpen = false;
-  $('calib').classList.remove('on');
   if (calibTimer) { clearInterval(calibTimer); calibTimer = null; }
   if (calibBlob) { URL.revokeObjectURL(calibBlob); calibBlob = null; }
   // 校准时是临时开的预览，关掉时按用户原来的意愿恢复
   wsSend({ cmd: 'preview', on: pipOn });
+  $('calib').classList.remove('on');       // 调试条那条路径没走 show()，兜一下
+  if (onCalibExit) onCalibExit();          // 回到准备一下
 }
 
 function startCalib() {
@@ -1079,6 +1086,13 @@ function startSession(opts) {
   $('fMin').value = min;
   // 进了自习室就把摄像头这条线接上（用户没开摄像头也不影响其余部分）
   wsSend({ cmd: 'start' });
+  // 感知层那边也清零 —— 准备页上摄像头可能已经开了一会儿，
+  // 不清的话一进来"专注"就已经是几十秒了
+  wsSend({ cmd: 'reset' });
+  epLabel = null; epDur = 0; epFired = {}; epNextAt = {};
+  lastAwaySec = 0; lastReactAt = 0;
+  $('focusText').textContent = '0';
+  $('pipLabel').textContent = '—';
   if (pipWanted && !pipOn) setPip(true);
   speak('sessionStart', 3.2);
 }
@@ -1187,7 +1201,11 @@ $('btnVoiceTest').addEventListener('click', () => {
 
 $('btnCam').addEventListener('click', toggleCam);
 $('btnCamReload').addEventListener('click', reloadCam);
-$('btnCalib').addEventListener('click', openCalib);
+// 调试条里的入口：自习中也能重新校准。正常动线是准备页里那个按钮。
+$('btnCalib').addEventListener('click', () => {
+  $('calib').classList.add('on');
+  openCalib();
+});
 $('calibCancel').addEventListener('click', closeCalib);
 $('calibGo').addEventListener('click', startCalib);
 document.querySelectorAll('[data-mode]').forEach(b => {
@@ -1285,6 +1303,8 @@ window.TZRoom = {
   recipe: (n, lv) => face && face.applyRecipe(n, lv ?? 1),
   pip: setPip,
   calib: (m) => { if (m) { calibMode = m; } openCalib(); },
+  onCalibExit: (fn) => { onCalibExit = fn; },
+  closeCalib,
   wsState: () => (ws ? ws.readyState : -1),
   debugPos: () => {
     const v3 = new THREE.Vector3();

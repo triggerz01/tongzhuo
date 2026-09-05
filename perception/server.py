@@ -276,6 +276,9 @@ class Perception:
                                               "size": [MODES[self.mode]["w"],
                                                        MODES[self.mode]["h"]]},
                                              ensure_ascii=False))
+                elif cmd == "reset":
+                    # 开场时清零，让"这一段持续了多久"从进自习室那一刻算起
+                    self.clf.reset_episode()
                 elif cmd == "snapshot":
                     # 抓拍一张留证。走 JSON + base64 而不是二进制帧 ——
                     # 二进制通道已经被画中人占了，混在一起前端分不清谁是谁。

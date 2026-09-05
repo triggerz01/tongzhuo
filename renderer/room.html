@@ -100,34 +100,56 @@
 
 
   /* ---- 摄像头校准 ---- */
-  #calib{position:absolute;inset:0;z-index:20;display:none;padding:12px;
-    background:rgba(8,10,13,.88);backdrop-filter:blur(3px);
-    align-items:center;justify-content:center}
-  #calib.on{display:flex}
-  .calibBox{width:min(720px,92%);max-height:92vh;display:flex;flex-direction:column;
-    background:#141920;border:1px solid #2a323b;
-    border-radius:8px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-  .calibHead{padding:12px 18px;border-bottom:1px solid #232a32;flex:0 0 auto}
-  .calibHead h3{margin:0;font-size:16px;font-weight:600}
-  .calibHead p{margin:6px 0 0;font-size:12.5px;color:#8d97a1;line-height:1.7}
-  .calibModes{display:flex;gap:8px;padding:10px 18px 0;flex:0 0 auto}
-  .calibModes button{flex:1;text-align:left;padding:10px 12px;line-height:1.6;
-    background:#1a2028;border:1px solid #2c343d;color:#c2cad2;cursor:pointer;
-    font-family:var(--sans);font-size:13px}
-  .calibModes button b{display:block;font-size:13.5px;color:#e6eaee;margin-bottom:2px}
+  /* 校准是一个独立界面，不是盖在自习室上的一层幕布 ——
+     它属于「准备一下 → 校准位置 → 回到准备一下 → 进入自习室」这条动线，
+     所以套的是和设置页、商店同一套 P5 语汇。 */
+  #calib{padding:22px 26px;overflow-y:auto;
+    background:
+      repeating-linear-gradient(115deg, rgba(158,27,37,.10) 0 3px, transparent 3px 58px),
+      linear-gradient(#0a0c0f 0%, #0a0c0f 100%)}
+  #calib > *{max-width:840px;width:100%;flex:0 0 auto}
+  #calib::-webkit-scrollbar{width:7px}
+  #calib::-webkit-scrollbar-track{background:#0b0b0d}
+  #calib::-webkit-scrollbar-thumb{background:#9E1B25}
+  #calib h3{display:inline-block;align-self:flex-start;background:#9E1B25;color:#fff;
+    padding:8px 22px 9px;transform:skewX(-9deg);
+    clip-path:polygon(0 0,100% 0,96% 100%,2% 92%);
+    font-family:Impact,var(--sans);font-size:24px;letter-spacing:.05em;font-weight:400;
+    text-shadow:2px 2px 0 rgba(0,0,0,.45);margin:0}
+  #calib h3 span{display:inline-block;transform:skewX(9deg)}
+  #calib .sub{margin:9px 0 16px;font-size:12.5px;color:#8d97a1;line-height:1.7}
+  #calib h4{display:inline-block;background:#17181b;color:#fff;padding:4px 14px;
+    transform:skewX(-9deg);border-left:3px solid #9E1B25;font-size:11px;
+    font-family:var(--mono);letter-spacing:.16em;margin:0 0 10px}
+  #calib h4 span{display:inline-block;transform:skewX(9deg)}
+
+  .calibModes{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+    gap:12px;margin-bottom:18px}
+  .calibModes button{text-align:left;padding:13px 15px;line-height:1.6;
+    background:rgba(20,25,31,.72);border:1px solid #2b333c;color:#c2cad2;cursor:pointer;
+    font-family:var(--sans);font-size:13px;transform:skewX(-7deg);
+    box-shadow:3px 3px 0 rgba(0,0,0,.55)}
+  .calibModes button > *{display:block;transform:skewX(7deg)}
+  .calibModes button b{font-size:14px;color:#e6eaee;margin-bottom:3px}
   .calibModes button small{color:#828d97;font-size:11.5px}
-  .calibModes button.on{border-color:#9E1B25;background:#20161a}
-  .calibStage{position:relative;margin:12px 18px;background:#0b0e12;flex:1;min-height:0;
-    border:1px solid #232a32;aspect-ratio:16/9;max-height:44vh;overflow:hidden}
+  .calibModes button.on{border-color:#9E1B25;background:#20161a;box-shadow:5px 5px 0 #9E1B25}
+
+  .calibStage{position:relative;background:#0b0e12;border:1px solid #232a32;
+    aspect-ratio:16/9;max-height:46vh;overflow:hidden;margin-bottom:14px;
+    box-shadow:4px 4px 0 rgba(0,0,0,.5)}
   #calibImg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
     background:#0b0e12}
   #calibSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
   .calibTip{position:absolute;left:0;right:0;bottom:0;padding:6px 10px;
-    background:rgba(0,0,0,.55);font-family:var(--mono);font-size:11px;color:#b9c2ca}
-  .calibFoot{display:flex;align-items:center;gap:10px;padding:0 18px 14px;flex:0 0 auto}
+    background:rgba(0,0,0,.62);font-family:var(--mono);font-size:11px;color:#b9c2ca}
+  .calibFoot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:8px}
   .calibFoot .msg{margin-right:auto;font-size:12.5px;color:#8d97a1}
-  .calibFoot button{padding:8px 16px;background:#1e242b;color:#c9d1d8;
-    border:1px solid #2f3841;font-family:var(--mono);font-size:12px;cursor:pointer}
+  .calibFoot button{padding:8px 18px;border:0;cursor:pointer;font-family:var(--sans);
+    font-size:12.5px;transform:skewX(-9deg);background:#22242a;color:#c9d1d8}
+  .calibFoot button:hover{background:#2c2f36;color:#fff}
+  .calibFoot button.primary{background:#9E1B25;color:#fff}
+  .calibFoot button.primary:hover{background:#b52430}
+  .calibFoot button:disabled{opacity:.45;cursor:default}
   .calibFoot button:hover{color:#fff;border-color:#46525d}
   .calibFoot button.primary{background:#9E1B25;color:#fff;border-color:#9E1B25}
   .calibFoot button.primary:hover{background:#b52430;border-color:#b52430}
@@ -1132,34 +1154,28 @@
     </div>
   </div>
 
-  <div id="calib">
-    <div class="calibBox">
-      <div class="calibHead">
-        <h3>校准摄像头位置</h3>
-        <p>先选你的使用场景，再把自己挪到轮廓线里。摄像头不支持变焦，
-           所以要靠<b>挪摄像头或往后坐</b>来对——轮廓线就是告诉你挪到什么程度。</p>
-      </div>
+  <div id="calib" class="veil">
+    <h3><span>校准位置</span></h3>
+    <p class="sub">先选一种坐法，再按画面里的轮廓线把自己摆进去。<br>
+      对好之后保持 15 秒不动，她会记住你平时的样子 —— 之后判断走神就以这个为准。</p>
 
-      <div class="calibModes">
-        <button data-mode="office" class="on">
-          <b>电脑办公</b><small>只要拍到脸。判定看头部朝向和眼睛。</small>
-        </button>
-        <button data-mode="desk">
-          <b>桌面读写</b><small>要拍到手臂和桌面。摄像头往下压，人往后坐。</small>
-        </button>
-      </div>
+    <h4><span>你怎么坐</span></h4>
+    <div class="calibModes">
+      <button data-mode="office"><b>电脑办公</b><small>对着电脑，摄像头只要看到脸</small></button>
+      <button data-mode="desk"><b>桌面读写</b><small>低头写字，要看到手臂和桌面</small></button>
+    </div>
 
-      <div class="calibStage">
-        <img id="calibImg" alt="摄像头画面">
-        <svg id="calibSvg" viewBox="0 0 320 180" preserveAspectRatio="none"></svg>
-        <div class="calibTip" id="calibTip">正在打开摄像头…</div>
-      </div>
+    <h4><span>对准轮廓</span></h4>
+    <div class="calibStage">
+      <img id="calibImg" alt="摄像头画面">
+      <svg id="calibSvg" viewBox="0 0 320 180" preserveAspectRatio="none"></svg>
+      <div class="calibTip" id="calibTip">正在打开摄像头…</div>
+    </div>
 
-      <div class="calibFoot">
-        <span class="msg" id="calibMsg">对好位置后点右边，保持姿势 15 秒</span>
-        <button id="calibCancel">取消</button>
-        <button id="calibGo" class="primary">位置对了，开始标定</button>
-      </div>
+    <div class="calibFoot">
+      <span class="msg" id="calibMsg">对好位置后点右边，保持姿势 15 秒</span>
+      <button id="calibCancel">返回准备</button>
+      <button id="calibGo" class="primary">位置对了，开始标定</button>
     </div>
   </div>
 
