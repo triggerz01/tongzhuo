@@ -264,7 +264,7 @@ function playClip(name) {
  * 学生：坐着，锚在胸口，桌子切在 0.72，看到上半身。
  * 老师：站着，锚在脚底，脚踩教室那张图量出来的墙脚线（0.87），全身。 */
 const framing = { anchorAt: 0.56, headAt: 0.14, headroom: 0.12 };
-const framingTeacher = { standAt: 0.87, headAt: 0.17, headroom: 0.10 };
+const framingTeacher = { standAt: 0.99, headAt: 0.09, headroom: 0.08 };
 
 function frameCamera() {
   if (!vrm || !bones || !bones.head) return;
@@ -1250,7 +1250,11 @@ function applyComp() {
   const bg = $('bg');
   bg.style.filter = `blur(${comp.blur}px) brightness(${comp.brightness}) saturate(${comp.saturate})`;
   // 轻微放大，避免 blur 在边缘露出空白
-  bg.style.transform = comp.blur > 0 ? `scale(${1 + comp.blur / 120})` : 'none';
+  const edge = comp.blur > 0 ? 1 + comp.blur / 120 : 1;
+  // 老师模式再叠一层教室放大。**必须和 #fg 用同一个原点**，不然两层会错开
+  const z = (roomMode === 'teacher') ? CLASS.zoom : 1;
+  bg.style.transform = `scale(${(edge * z).toFixed(4)})`;
+  bg.style.transformOrigin = (roomMode === 'teacher') ? 'center top' : 'center';
   $('bgTint').style.background = comp.tint;
 }
 
@@ -1300,16 +1304,32 @@ function sizeDesk(s) {
  * 所以不放大、和背景严丝合缝对齐，只把 CLASS.fgTop 以下切出来盖在她身上 ——
  * 她站在课桌后面，纵深就出来了。摆件系统在这个模式下整个关掉。 */
 const CLASS = {
-  fgTop: 0.70,      // 前排课桌从这儿开始，盖住她的小腿
-  shadow: 0.055     // 脚下那片接触阴影的高度
+  /* 背景和前景一起放大，从顶上撑。
+     只把切线往下挪是不行的 —— 那样她的腿会盖住背景里那几张课桌，
+     透视立刻就错了。两层用同一个变换，才能一边让课桌占得少一点，
+     一边让讲台和人占得多一点。 */
+  zoom: 1.14,
+  fgTopRaw: 0.70,   // 前排课桌在**原图**里的位置
+  standRaw: 0.87,   // 墙脚线在**原图**里的位置
+  shadow: 0.05
 };
+
+// 放大之后它们在**屏幕**上的位置
+const classStandAt = () => Math.min(0.995, CLASS.standRaw * CLASS.zoom);
 
 function sizeClassroom(s) {
   const fg = $('fg');
   fg.style.backgroundSize = 'cover';
   fg.style.backgroundPosition = 'center';
-  fg.style.clipPath = `inset(${(CLASS.fgTop * 100).toFixed(1)}% 0 0 0)`;
+  // clip-path 走的是元素自己的坐标，transform 在它之后生效 ——
+  // 所以这里填原图的比例，屏幕上的位置由 zoom 决定
+  fg.style.clipPath = `inset(${(CLASS.fgTopRaw * 100).toFixed(1)}% 0 0 0)`;
+  fg.style.transform = `scale(${CLASS.zoom})`;
+  fg.style.transformOrigin = 'center top';
   fg.style.filter = `brightness(${comp.brightness}) saturate(${comp.saturate})`;
+
+  // 取景跟着放大后的墙脚线走
+  framingTeacher.standAt = classStandAt();
 
   // 脚下的接触阴影。站着的人没有影子会飘，这一片压在墙脚线上方
   const ao = $('deskAO');
@@ -1336,7 +1356,13 @@ function applyScene(i) {
     // 清空内联样式会回落回 none —— 这层遮挡以前一直没生效就是栽在这儿。
     fg.style.display = 'block';
     fg.style.backgroundImage = `url("${s.img}")`;
-    if (roomMode === 'teacher') sizeClassroom(s); else sizeDesk(s);
+    if (roomMode === 'teacher') {
+      sizeClassroom(s);
+    } else {
+      fg.style.transform = 'none';        // 学生模式不放大，清掉老师模式留下的
+      fg.style.transformOrigin = 'center';
+      sizeDesk(s);
+    }
   } else {
     fg.style.display = 'none';
     $('deskAO').style.display = 'none';
@@ -1585,6 +1611,15 @@ window.TZRoom = {
   sceneLocked,
   classFraming: framingTeacher,
   classFg: CLASS,
+  classTune: (patch) => {                 // 控制台调参：TZRoom.classTune({zoom:1.2, headAt:0.06})
+    if (patch.zoom !== undefined) CLASS.zoom = patch.zoom;
+    if (patch.fgTopRaw !== undefined) CLASS.fgTopRaw = patch.fgTopRaw;
+    if (patch.headAt !== undefined) framingTeacher.headAt = patch.headAt;
+    applyScene(sceneIdx);
+    frameCamera();
+    return { zoom: CLASS.zoom, fgTopRaw: CLASS.fgTopRaw,
+             headAt: framingTeacher.headAt, standAt: framingTeacher.standAt };
+  },
   pose: applyPose,
   poseOff: () => applyPose(null),
   on,          // 给 story.js 订阅事件
