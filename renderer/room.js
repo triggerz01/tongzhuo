@@ -176,10 +176,13 @@ async function loadAnimations() {
   baseAction.play();
 
   // 一次性动作播完，淡回底层循环
-  mixer.addEventListener('finished', () => {
-    if (!oneShot) return;
+  mixer.addEventListener('finished', (e) => {
+    // 只认当前这个一次性动作的结束事件，别被上一个的残留 finished 带偏
+    if (!oneShot || e.action !== oneShot) return;
     baseAction.enabled = true;
     baseAction.setEffectiveWeight(1);
+    baseAction.paused = false;
+    baseAction.play();
     baseAction.crossFadeFrom(oneShot, 0.45, false);
     oneShot = null;
   });
@@ -193,7 +196,15 @@ async function loadAnimations() {
 function playClip(name) {
   const c = clips[name];
   if (!c || !mixer || name === baseAction?.getClip().name) return false;
-  if (oneShot) oneShot.stop();
+  // 关键：上一个一次性动作还在时，光 stop() 是不够的 —— 它淡入的时候把底层
+  // 循环的权重压到了 0，stop 之后没人把它加回来。接下来的 crossFadeFrom 就是
+  // 从"没有任何姿势"淡进来，权重和不足 1，绑定姿势（T-pose）从缝里漏出来。
+  // 双手平举就是这么来的。所以每次插播前都把底层循环的权重显式复位。
+  if (oneShot) { oneShot.stop(); oneShot = null; }
+  baseAction.enabled = true;
+  baseAction.setEffectiveWeight(1);
+  baseAction.paused = false;
+  baseAction.play();
   oneShot = mixer.clipAction(c);
   oneShot.reset();
   oneShot.setLoop(THREE.LoopOnce, 1);
