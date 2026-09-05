@@ -10,6 +10,7 @@
 'use strict';
 
 import { initRecords, recordStore } from './records.js';
+import { initSettings } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -59,12 +60,13 @@ function videoPlaying(on) {
 }
 
 /* ---------------- 界面切换 ---------------- */
-let view = 'home';   // home | setup | session
+let view = 'home';   // home | setup | settings | session
 
 function show(v) {
   view = v;
   $('home').classList.toggle('on', v === 'home');
   $('setup').classList.toggle('on', v === 'setup');
+  $('settings').classList.toggle('on', v === 'settings');
   if (v !== 'home') $('records').classList.remove('on');
   document.body.classList.toggle('in-session', v === 'session');
   videoPlaying(v !== 'session');
@@ -179,6 +181,7 @@ function init() {
 
   initVideo();
   initRecords();
+  initSettings(show);
   window.TZRoom.onSessionEnd(finish);
   setInterval(() => { if (view === 'setup') paintCamStatus(); }, 1500);
   show('home');

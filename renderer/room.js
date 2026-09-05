@@ -9,6 +9,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { loadMixamoAnimation } from './mixamo.js';
 import { Expressions, STATE_FACE } from './expression.js';
+import { settings } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -90,8 +91,9 @@ async function findModel() {
   return null;
 }
 
-async function loadModel() {
-  const path = await findModel();
+/** want 传具体路径就加载它；不传就按 findModel 的顺序挑第一个 */
+async function loadModel(want) {
+  const path = want || await findModel();
   if (!path) { $('hint').style.display = ''; return false; }
   $('hint').textContent = '正在加载角色…';
 
@@ -1101,7 +1103,10 @@ loadScenes().then((real) => {
   applyScene(0);
   if (!real) console.log('[room] assets/scenes 里还没有背景图，先用 CSS 兜底');
 });
-loadModel();
+// 启动时加载设置里选的那个人；文件不在了就退回目录里的第一个
+(async () => {
+  if (!(await loadModel(settings.modelPath()))) await loadModel();
+})();
 
 // 用户不该为了用摄像头去手动开一个 Python 进程 —— 启动时自己拉起来。
 // 但摄像头本身默认不开，等用户点「开启」（隐私上的默认值）。
