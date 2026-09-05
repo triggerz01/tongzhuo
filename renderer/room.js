@@ -601,6 +601,10 @@ function onState(label, duration) {
   // 换段了：结算上一段
   if (label !== epLabel) {
     if (epLabel === 'away') lastAwaySec = epDur;
+    if (session) {
+      if (label === 'away') session.awayCount++;
+      if (label === 'phone' || label === 'drowsy') session.distractCount++;
+    }
     // 离席够久再回到专注，才值得说"你回来了"
     if (label === 'focus' && lastAwaySec >= LINK.welcomeAfterAwayMin * 60) {
       lastAwaySec = 0;
@@ -923,24 +927,39 @@ function say(text, ms) {
 
 /* 会话计时（巡查逻辑下一步接上） */
 let session = null;
-function startSession() {
-  const min = Number($('fMin').value) || 25;
-  session = { startedAt: Date.now(), plannedMin: min, focusMs: 0 };
+const sessionEndCbs = [];
+
+function startSession(opts) {
+  const min = (opts && opts.minutes) || Number($('fMin').value) || 25;
+  session = { startedAt: Date.now(), plannedMin: min, focusMs: 0,
+              awayCount: 0, distractCount: 0 };
   $('stateText').textContent = '自习中';
+  $('fMin').value = min;
+  // 进了自习室就把摄像头这条线接上（用户没开摄像头也不影响其余部分）
+  wsSend({ cmd: 'start' });
   say('开始了，我也开始。', 3000);
 }
-function stopSession() {
+function stopSession(reason) {
   if (!session) return;
+  const summary = {
+    reason: reason || 'manual',
+    focusMin: Math.floor(session.focusMs / 60000) || Math.floor((Date.now() - session.startedAt) / 60000),
+    awayCount: session.awayCount,
+    distractCount: session.distractCount,
+    plannedMin: session.plannedMin
+  };
   session = null;
   $('stateText').textContent = '已结束';
   say('今天到这儿。', 3200);
+  wsSend({ cmd: 'pause' });          // 收工就把摄像头放开
+  sessionEndCbs.forEach(fn => { try { fn(summary); } catch (e) { console.error(e); } });
 }
 setInterval(() => {
   if (!session) return;
   const m = Math.floor((Date.now() - session.startedAt) / 60000);
   $('focusText').textContent = m;
   $('coinText').textContent = Math.min(30, Math.floor(m / 25) * 3);
-  if (m >= session.plannedMin) stopSession();
+  if (m >= session.plannedMin) stopSession('planned');
 }, 1000);
 
 $('btnStart').addEventListener('click', startSession);
@@ -1048,6 +1067,10 @@ window.TZRoom = {
              sceneY: +vrm.scene.getWorldPosition(v3).y.toFixed(3) };
   },
   say,
+  startSession,
+  endSession: (why) => stopSession(why || 'manual'),
+  onSessionEnd: (fn) => sessionEndCbs.push(fn),
+  sessionInfo: () => (session ? { ...session } : null),
   scene: applyScene,
   scenes: () => SCENES.map(s => s.name),
   reloadScenes: () => loadScenes().then(() => applyScene(0)),

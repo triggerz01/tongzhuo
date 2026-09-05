@@ -1,0 +1,134 @@
+/* home.js — 主界面与准备流程
+ *
+ * 不做成独立页面，而是盖在自习室之上的两层遮罩：
+ *   主界面   角色已经坐在那了，只是隔着一层暗色 —— 视觉上直接就有内容，
+ *            而且模型和场景在你挑设置的这段时间里已经加载完了
+ *   准备页   学习地点 / 今天学多久 / 摄像头
+ *
+ * 时长到了会自动收工并退回主界面，带一张当场的小结。
+ */
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+
+const DURATIONS = [
+  { min: 25, label: '25 分钟', note: '一个番茄钟' },
+  { min: 45, label: '45 分钟', note: '一节课' },
+  { min: 60, label: '1 小时', note: '' },
+  { min: 90, label: '90 分钟', note: '一场考试' }
+];
+
+const state = {
+  scene: 0,
+  minutes: 45,
+  breakMin: 5
+};
+
+/* ---------------- 界面切换 ---------------- */
+let view = 'home';   // home | setup | session
+
+function show(v) {
+  view = v;
+  $('home').classList.toggle('on', v === 'home');
+  $('setup').classList.toggle('on', v === 'setup');
+  document.body.classList.toggle('in-session', v === 'session');
+  // 主界面和准备页都不需要角色说话
+  if (v !== 'session' && window.TZRoom) window.TZRoom.say('');
+}
+
+/* ---------------- 准备页 ---------------- */
+function renderScenes() {
+  const names = window.TZRoom ? window.TZRoom.scenes() : [];
+  const box = $('sceneList');
+  box.innerHTML = '';
+  names.forEach((n, i) => {
+    const card = document.createElement('button');
+    card.className = 'sceneCard' + (i === state.scene ? ' on' : '');
+    // 直接拿场景原图当封面，不用另做缩略图
+    card.style.backgroundImage = `url("../assets/scenes/${encodeURIComponent(n)}.jpg")`;
+    card.innerHTML = `<span>${n.replace(/^\d+-/, '')}</span>`;
+    card.addEventListener('click', () => {
+      state.scene = i;
+      window.TZRoom.scene(i);
+      renderScenes();
+    });
+    box.appendChild(card);
+  });
+}
+
+function renderDurations() {
+  const box = $('durList');
+  box.innerHTML = '';
+  DURATIONS.forEach((d) => {
+    const b = document.createElement('button');
+    b.className = 'durCard' + (d.min === state.minutes ? ' on' : '');
+    b.innerHTML = `<b>${d.label}</b>${d.note ? `<small>${d.note}</small>` : ''}`;
+    b.addEventListener('click', () => { state.minutes = d.min; syncDur(); });
+    box.appendChild(b);
+  });
+  $('durCustom').value = state.minutes;
+}
+
+function syncDur() {
+  renderDurations();
+  $('durCustom').value = state.minutes;
+}
+
+function paintCamStatus() {
+  const t = $('camText') ? $('camText').textContent : '';
+  $('setupCam').textContent = t || '未知';
+  const on = $('camDot2') && $('camDot2').classList.contains('on');
+  $('setupCamDot').classList.toggle('on', on);
+}
+
+/* ---------------- 开始 / 结束 ---------------- */
+function begin() {
+  const m = Math.max(1, Math.min(600, Number($('durCustom').value) || state.minutes));
+  state.minutes = m;
+  show('session');
+  window.TZRoom.startSession({ minutes: m, breakMin: state.breakMin });
+}
+
+/** 时长到了或手动结束 —— 回主界面，带一张小结 */
+function finish(summary) {
+  show('home');
+  const s = summary || {};
+  $('homeSummary').classList.add('on');
+  $('sumMinutes').textContent = s.focusMin ?? 0;
+  $('sumAway').textContent = s.awayCount ?? 0;
+  $('sumDistract').textContent = s.distractCount ?? 0;
+  $('sumTitle').textContent = (s.reason === 'planned') ? '今天的量完成了' : '这一场结束了';
+}
+
+/* ---------------- 装配 ---------------- */
+function init() {
+  $('btnStart').addEventListener('click', () => {
+    $('homeSummary').classList.remove('on');
+    renderScenes(); syncDur(); paintCamStatus();
+    show('setup');
+  });
+  $('btnBackHome').addEventListener('click', () => show('home'));
+  $('btnEnter').addEventListener('click', begin);
+  $('durCustom').addEventListener('input', () => {
+    state.minutes = Number($('durCustom').value) || state.minutes;
+    document.querySelectorAll('.durCard').forEach(c => c.classList.remove('on'));
+  });
+  $('setupCalib').addEventListener('click', () => $('btnCalib').click());
+  $('setupCamBtn').addEventListener('click', () => { $('btnCam').click(); setTimeout(paintCamStatus, 900); });
+  $('btnQuitSession').addEventListener('click', () => window.TZRoom.endSession('manual'));
+
+  // 调试条平时藏起来，按 D 才出来 —— 演示时不该看到一排测试按钮
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'd' || e.key === 'D') document.body.classList.toggle('debug');
+  });
+
+  window.TZRoom.onSessionEnd(finish);
+  setInterval(() => { if (view === 'setup') paintCamStatus(); }, 1500);
+  show('home');
+}
+
+function boot() {
+  if (window.TZRoom && window.TZRoom.onSessionEnd) init();
+  else setTimeout(boot, 200);
+}
+boot();
