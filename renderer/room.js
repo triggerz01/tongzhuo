@@ -264,7 +264,9 @@ function playClip(name) {
  * 学生：坐着，锚在胸口，桌子切在 0.72，看到上半身。
  * 老师：站着，锚在脚底，脚踩教室那张图量出来的墙脚线（0.87），全身。 */
 const framing = { anchorAt: 0.56, headAt: 0.14, headroom: 0.12 };
-const framingTeacher = { standAt: 0.99, headAt: 0.09, headroom: 0.08 };
+/* headAt 0.19：放大教室之后墙脚线降到 0.99，要让她保持"原来那个大小"，
+   头顶留白就得跟着往下走。0.09 那一版整个人占了画面 90%，太满了。 */
+const framingTeacher = { standAt: 0.99, headAt: 0.19, headroom: 0.08 };
 
 function frameCamera() {
   if (!vrm || !bones || !bones.head) return;
