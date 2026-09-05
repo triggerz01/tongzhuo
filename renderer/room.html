@@ -311,6 +311,72 @@
   .p5-rec .tag.mid{background:#2a2a2f;color:#9a9aa2}
   #recDayList .empty{color:#6c6c74;font-size:13px;margin-top:16px}
 
+
+  /* ---------------- P5 外壳：主界面 / 准备页 ----------------
+     只套"壳"，不套自习中的界面 —— 进行中我们要的是不打扰，
+     满屏红黑斜切会跟那个主张打架。 */
+
+  /* 主界面 */
+  #home .p5corner{position:absolute;pointer-events:none}
+  #home .p5corner.tl{left:-60px;top:-40px;width:340px;height:150px;background:#9E1B25;
+    transform:rotate(-8deg);clip-path:polygon(0 0,100% 0,78% 100%,0 74%);opacity:.92}
+  #home .p5corner.br{right:-70px;bottom:-50px;width:300px;height:140px;background:#111;
+    transform:rotate(-6deg);clip-path:polygon(22% 0,100% 26%,100% 100%,0 100%);opacity:.9}
+  #home .p5tag{position:absolute;left:26px;top:22px;font-family:Impact,var(--sans);
+    font-size:15px;letter-spacing:.3em;color:#fff;transform:rotate(-8deg);
+    text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+  #home .brandWrap{position:relative;display:inline-block;padding:10px 40px;
+    background:#111;transform:skewX(-9deg);
+    clip-path:polygon(0 0,100% 0,96% 100%,3% 94%);
+    box-shadow:8px 8px 0 rgba(158,27,37,.85);
+    animation:p5drop .5s cubic-bezier(.16,1.15,.3,1) both}
+  #home .brandWrap > *{transform:skewX(9deg)}
+  #home .brand{font-size:clamp(40px,6.2vw,66px);text-shadow:4px 4px 0 #9E1B25}
+  #home .tag{animation:p5drop .5s .1s cubic-bezier(.16,1.15,.3,1) both}
+  #home .acts{animation:p5drop .5s .2s cubic-bezier(.16,1.15,.3,1) both}
+  @keyframes p5drop{from{opacity:0;transform:translate(-40px,18px) rotate(-3deg)}
+                    to{opacity:1;transform:none}}
+
+  .bigBtn,.ghostBtn{transform:skewX(-9deg);position:relative}
+  .bigBtn span,.ghostBtn span{display:inline-block;transform:skewX(9deg)}
+  .bigBtn{clip-path:polygon(0 0,100% 0,97% 100%,2% 92%);
+    box-shadow:6px 6px 0 rgba(0,0,0,.55);font-family:var(--sans);font-weight:600}
+  .bigBtn:hover{transform:skewX(-9deg) translate(-2px,-2px);box-shadow:8px 8px 0 rgba(0,0,0,.6)}
+  .ghostBtn{clip-path:polygon(0 0,100% 0,98% 100%,1% 94%)}
+  .ghostBtn:hover{transform:skewX(-9deg) translate(-2px,-2px)}
+
+  /* 准备页 */
+  #setup{background:
+    repeating-linear-gradient(115deg, rgba(158,27,37,.10) 0 3px, transparent 3px 58px),
+    linear-gradient(rgba(8,10,13,.90) 0%, rgba(8,10,13,.95) 100%)}
+  #setup h3{display:inline-block;background:#9E1B25;color:#fff;padding:8px 22px 9px;
+    transform:skewX(-9deg);clip-path:polygon(0 0,100% 0,96% 100%,2% 92%);
+    font-family:Impact,var(--sans);font-size:24px;letter-spacing:.05em;font-weight:400;
+    text-shadow:2px 2px 0 rgba(0,0,0,.45)}
+  #setup h3 span{display:inline-block;transform:skewX(9deg)}
+  #setup h4{display:inline-block;background:#17181b;color:#fff;padding:4px 14px;
+    transform:skewX(-9deg);border-left:3px solid #9E1B25;font-size:11px}
+  #setup h4 span{display:inline-block;transform:skewX(9deg)}
+
+  .sceneCard{transform:skewX(-7deg);box-shadow:3px 3px 0 rgba(0,0,0,.55)}
+  .sceneCard span{transform:skewX(7deg);transform-origin:left bottom}
+  .sceneCard.on{border-color:#9E1B25;box-shadow:5px 5px 0 #9E1B25}
+  .sceneCard.on::after{content:'';position:absolute;left:0;right:0;bottom:0;height:34%;
+    background:
+      radial-gradient(circle, rgba(158,27,37,.55) 1px, transparent 1.5px) 0 0/5px 5px,
+      linear-gradient(transparent, rgba(158,27,37,.75));
+    pointer-events:none}
+  .sceneCard.on span{color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.7);z-index:2}
+  .durCard{transform:skewX(-7deg);box-shadow:3px 3px 0 rgba(0,0,0,.55)}
+  .durCard b{font-family:Impact,var(--sans);font-size:22px;letter-spacing:.03em;
+    transform:skewX(7deg);display:block}
+  .durCard small{transform:skewX(7deg);display:block}
+  .durCard.on{border-color:#9E1B25;box-shadow:5px 5px 0 #9E1B25;background:#2a1216}
+  .durCard.on b{color:#fff}
+  .camRow{transform:skewX(-7deg);box-shadow:3px 3px 0 rgba(0,0,0,.55);border-left:3px solid #9E1B25}
+  .camRow > *{transform:skewX(7deg)}
+  .durRow input{transform:skewX(-7deg)}
+
   #hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     text-align:center;max-width:70%;line-height:1.9;font-size:14px;color:#9aa3ab}
   #hint code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:3px;
@@ -368,11 +434,14 @@
   <div id="quitBar"><button id="btnQuitSession">结束这一场</button></div>
 
   <div id="home" class="veil on">
-    <h1 class="brand">同 桌</h1>
+    <div class="p5corner tl"></div>
+    <div class="p5corner br"></div>
+    <div class="p5tag">STUDY WITH ME</div>
+    <div class="brandWrap"><h1 class="brand">同 桌</h1></div>
     <p class="tag">它不会来查你。它只是一直在。</p>
     <div class="acts">
-      <button id="btnStart" class="bigBtn">开始自习</button>
-      <button id="btnRecords" class="ghostBtn">学习记录</button>
+      <button id="btnStart" class="bigBtn"><span>开始自习</span></button>
+      <button id="btnRecords" class="ghostBtn"><span>学习记录</span></button>
     </div>
     <div id="homeSummary">
       <h4 id="sumTitle">这一场结束了</h4>
@@ -413,16 +482,16 @@
   </div>
 
   <div id="setup" class="veil">
-    <h3>准备一下</h3>
+    <h3><span>准备一下</span></h3>
     <p class="sub">选个地方、定好今天学多久，摄像头愿意开就开。</p>
 
     <section>
-      <h4>学习地点</h4>
+      <h4><span>学习地点</span></h4>
       <div id="sceneList"></div>
     </section>
 
     <section>
-      <h4>今天学多久</h4>
+      <h4><span>今天学多久</span></h4>
       <div id="durList"></div>
       <div class="durRow">
         <span>或者自己填</span>
@@ -432,7 +501,7 @@
     </section>
 
     <section>
-      <h4>摄像头（可以不开）</h4>
+      <h4><span>摄像头（可以不开）</span></h4>
       <div class="camRow">
         <span id="setupCamDot" class="dot2"></span>
         <span id="setupCam">未知</span>
@@ -444,8 +513,8 @@
     </section>
 
     <div class="foot">
-      <button id="btnBackHome" class="ghostBtn" style="min-width:100px">返回</button>
-      <button id="btnEnter" class="bigBtn" style="min-width:150px">进入自习室</button>
+      <button id="btnBackHome" class="ghostBtn" style="min-width:100px"><span>返回</span></button>
+      <button id="btnEnter" class="bigBtn" style="min-width:150px"><span>进入自习室</span></button>
     </div>
   </div>
 
