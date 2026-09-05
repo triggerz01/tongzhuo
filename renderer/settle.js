@@ -108,6 +108,32 @@ export async function showSettle(s) {
     await sleep(170);
   }
 
+  // 同行：这一场跨过新章节的话，在事件之后单独说一句 ——
+  // 点数是你做到了多少，这一行是你们走到哪儿了，两件事
+  if (s.bond && s.bond.crossed && s.bond.crossed.length) {
+    const box2 = $('settleLines');
+    for (const c of s.bond.crossed) {
+      const row = document.createElement('div');
+      row.className = 'sline bond';
+      row.innerHTML =
+        `<span class="lb">与 ${s.bond.who} 同行 · 第 ${c.n} 章</span>` +
+        `<span class="n">${c.title}</span>` +
+        `<span class="amt">解锁</span>`;
+      box2.appendChild(row);
+      await sleep(190);
+      if (c.gift) {
+        const g = document.createElement('div');
+        g.className = 'sline gift';
+        g.innerHTML =
+          `<span class="lb">${s.bond.who} 把 ${c.gift} 给了你</span>` +
+          `<span class="n">可以放到桌面上</span>` +
+          `<span class="amt">赠礼</span>`;
+        box2.appendChild(g);
+        await sleep(190);
+      }
+    }
+  }
+
   if (pts.missed && MISS_TEXT[pts.missed]) {
     $('settleNote').textContent = MISS_TEXT[pts.missed];
     $('settleNote').style.display = '';

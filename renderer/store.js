@@ -58,7 +58,8 @@ function render() {
     b.classList.toggle('on', b.dataset.tab === tab);
   });
 
-  const rows = products.filter(p => tab === 'all' || p.type === tab);
+  // 剧情赠礼不在商店卖 —— 它是她给你的，不是你买的
+  const rows = products.filter(p => !p.story && (tab === 'all' || p.type === tab));
   const grid = $('storeGrid');
   grid.innerHTML = '';
 

@@ -311,6 +311,11 @@
   .sline.plus .amt{color:#3fb27f}
   .sline.minus{border-left-color:#9E1B25}
   .sline.minus .amt{color:#ff5b5b}
+  /* 同行：解锁章节和赠礼。用金色，和加减分的绿红分开 —— 这不是分数 */
+  .sline.bond{border-left-color:#c9a227}
+  .sline.bond .amt{color:#ffd23f;font-size:14px}
+  .sline.gift{border-left-color:#6fa8dc}
+  .sline.gift .amt{color:#8fc3f5;font-size:14px}
 
   #settleNote{margin-top:12px;font-size:12px;color:#8d97a1;border-left:3px solid #ffd23f;
     padding-left:10px;line-height:1.7}
@@ -394,6 +399,155 @@
     animation:p5drop .5s .26s cubic-bezier(.16,1.15,.3,1) both}
   #homePoints{font-family:Impact,monospace;font-size:20px;color:#ffd23f;margin:0 4px;
     text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+
+  /* ================= 同行模式：画廊 / 角色页 / 剧情页 ================= */
+
+  /* ---------------- 画廊 ---------------- */
+  #gallery{padding:0;overflow:hidden;
+    background:
+      repeating-linear-gradient(115deg, rgba(158,27,37,.10) 0 3px, transparent 3px 58px),
+      linear-gradient(#0a0c0f 0%, #0a0c0f 100%)}
+  #gallery .p5head{margin:22px -12px 0;padding-top:20px}
+  #galBody{position:relative;z-index:2;flex:1;min-height:0;overflow-y:auto;padding:14px 26px 26px}
+  #galBody::-webkit-scrollbar{width:7px}
+  #galBody::-webkit-scrollbar-track{background:#0b0b0d}
+  #galBody::-webkit-scrollbar-thumb{background:#9E1B25}
+  .galWho{display:flex;align-items:baseline;gap:12px;margin:6px 0 12px}
+  .galWho b{font-family:Impact,var(--sans);font-size:17px;letter-spacing:.1em;color:#fff;
+    background:#9E1B25;padding:3px 14px 4px;transform:skewX(-8deg);font-weight:400}
+  .galWho small{font-size:11.5px;color:#8d97a1;letter-spacing:.06em}
+  .galGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;
+    margin-bottom:26px}
+  .cgCard{position:relative;aspect-ratio:16/9;background:#141418;border:1px solid #2b2b31;
+    overflow:hidden;cursor:pointer;padding:0;
+    transform:skewX(-4deg);box-shadow:4px 4px 0 rgba(0,0,0,.55);
+    animation:p5in .32s cubic-bezier(.16,1.1,.3,1) both}
+  .cgCard img{width:100%;height:100%;object-fit:cover;display:block;
+    filter:saturate(.9) brightness(.9);transition:filter .2s,transform .3s}
+  .cgCard:hover img{filter:none;transform:scale(1.04)}
+  .cgCard .no{position:absolute;left:0;top:0;background:#9E1B25;color:#fff;
+    font-family:Impact,monospace;font-size:13px;padding:1px 9px 2px;transform:skewX(4deg);
+    transform-origin:left top}
+  .cgCard .nm{position:absolute;left:0;right:0;bottom:0;padding:16px 10px 7px;
+    background:linear-gradient(transparent,rgba(0,0,0,.85));color:#e8ecef;font-size:12.5px;
+    text-align:left}
+  .galEmpty{grid-column:1/-1;padding:44px 20px;text-align:center;color:#75808a;
+    font-size:13px;line-height:1.9;border:1px dashed #2f3841}
+
+  /* 放大看 */
+  #cgView{position:absolute;inset:0;z-index:50;display:flex;align-items:center;
+    justify-content:center;background:rgba(5,6,8,.94);opacity:0;pointer-events:none;
+    transition:opacity .22s;flex-direction:column;gap:14px;padding:24px}
+  #cgView.on{opacity:1;pointer-events:auto}
+  #cgView img{max-width:100%;max-height:78%;object-fit:contain;
+    box-shadow:0 20px 60px rgba(0,0,0,.7)}
+  #cgView .cap{font-size:13.5px;color:#c9d1d8;letter-spacing:.06em}
+  #cgView .cap b{color:#ffd23f;font-family:Impact,monospace;font-size:16px;margin-right:8px}
+  #cgClose{position:absolute;right:20px;top:16px;background:transparent;border:0;
+    color:#8d97a1;font-size:26px;cursor:pointer}
+  #cgClose:hover{color:#fff}
+
+  /* ---------------- 角色信息页 ---------------- */
+  #persona{padding:0;overflow:hidden;
+    background:
+      repeating-linear-gradient(115deg, rgba(158,27,37,.10) 0 3px, transparent 3px 58px),
+      linear-gradient(#0a0c0f 0%, #0a0c0f 100%)}
+  #persona .p5head{margin:22px -12px 0;padding-top:20px}
+  #personaBody{position:relative;z-index:2;flex:1;min-height:0;display:flex;gap:22px;
+    padding:16px 26px 20px;overflow:hidden}
+  /* 左：立绘。底下垫一块红斜板，人物像是站在一张卡上 */
+  #personaArt{position:relative;flex:0 0 30%;min-width:180px;display:flex;
+    align-items:flex-end;justify-content:center}
+  #personaArt::before{content:'';position:absolute;left:8%;right:8%;top:10%;bottom:4%;
+    background:linear-gradient(#9E1B25,#5d1017);transform:skewX(-6deg);
+    box-shadow:6px 6px 0 rgba(0,0,0,.55)}
+  #personaArt::after{content:'';position:absolute;left:8%;right:8%;top:10%;bottom:4%;
+    background-image:radial-gradient(circle, rgba(0,0,0,.26) 1px, transparent 1.5px);
+    background-size:6px 6px;transform:skewX(-6deg)}
+  #personaArt img{position:relative;z-index:2;max-height:100%;max-width:100%;
+    object-fit:contain;filter:drop-shadow(6px 8px 12px rgba(0,0,0,.6))}
+  /* 右：信息 */
+  #personaInfo{flex:1;min-width:0;overflow-y:auto;padding-right:6px}
+  #personaInfo::-webkit-scrollbar{width:7px}
+  #personaInfo::-webkit-scrollbar-track{background:#0b0b0d}
+  #personaInfo::-webkit-scrollbar-thumb{background:#9E1B25}
+  #personaInfo h3{margin:0;font-family:Impact,var(--sans);font-size:30px;color:#fff;
+    font-weight:400;letter-spacing:.06em;text-shadow:3px 3px 0 #9E1B25}
+  #personaInfo .tag{display:inline-block;margin:8px 0 12px;background:#17181b;color:#c9d1d8;
+    padding:3px 12px;font-size:11.5px;letter-spacing:.1em;transform:skewX(-8deg);
+    border-left:3px solid #9E1B25}
+  #personaInfo p{margin:0 0 12px;font-size:13px;color:#a9b2ba;line-height:1.95}
+  #personaInfo p.why{color:#d5dbe1;border-left:3px solid #ffd23f;padding-left:11px}
+  .pStats{display:flex;gap:10px;margin:14px 0 6px;flex-wrap:wrap}
+  .pStats .q{flex:1;min-width:120px;background:#0e0e10;padding:11px 13px;
+    transform:skewX(-5deg);border-bottom:3px solid #9E1B25;text-align:center}
+  .pStats .q > *{display:block;transform:skewX(5deg)}
+  .pStats .v{font-family:Impact,monospace;font-size:27px;color:#ffd23f;line-height:1.05}
+  .pStats .u{font-size:10.5px;color:#8d97a1}
+  .pStats .k{font-size:11px;color:#c9c9d0;margin-top:4px;letter-spacing:.06em}
+
+  /* 剧情时间轴 */
+  #personaInfo h5{font-family:Impact,var(--sans);font-size:12px;letter-spacing:.16em;
+    color:#fff;background:#9E1B25;display:inline-block;padding:2px 12px 3px;
+    transform:skewX(-8deg);margin:16px 0 12px}
+  .tline{position:relative;display:flex;align-items:flex-start;gap:0;padding:0 2px}
+  .tline .seg{flex:1;height:3px;background:#2a2a2f;margin-top:9px}
+  .tline .seg.on{background:#9E1B25}
+  .tnode{position:relative;flex:0 0 22px;display:flex;flex-direction:column;
+    align-items:center;cursor:default}
+  .tnode i{width:20px;height:20px;background:#1a1a1d;border:2px solid #3a3a42;
+    transform:rotate(45deg);display:flex;align-items:center;justify-content:center;
+    font-size:9px;color:#6c6c74;font-style:normal}
+  .tnode i span{transform:rotate(-45deg)}
+  .tnode.on i{background:#9E1B25;border-color:#ffd23f;color:#fff}
+  .tnode em{position:absolute;top:26px;font-size:9.5px;color:#6c6c74;font-style:normal;
+    white-space:nowrap}
+  .tnode.on em{color:#c9c9d0}
+  .tlineWrap{margin-bottom:34px}
+  /* 节点名是绝对定位挂在轴下面的，这里必须让开，否则会被压住 */
+  #tlineNow{margin-top:36px;font-size:12px;color:#8d97a1;line-height:1.8}
+  #tlineNow b{color:#ffd23f}
+  #personaFoot{position:relative;z-index:2;display:flex;gap:10px;justify-content:flex-end;
+    padding:0 26px 20px}
+
+  /* ---------------- 剧情页 ---------------- */
+  #storyView{position:absolute;inset:0;z-index:36;display:none;
+    background:#07080a;flex-direction:column;align-items:center;justify-content:center}
+  #storyView.on{display:flex}
+  .stTitle{font-family:Impact,var(--sans);font-size:15px;letter-spacing:.3em;color:#9E1B25;
+    margin-bottom:6px}
+  .stName{font-family:Impact,var(--sans);font-size:34px;color:#fff;font-weight:400;
+    letter-spacing:.06em;text-shadow:3px 3px 0 #9E1B25;margin:0 0 22px}
+  #stText{width:min(680px,84%);max-height:52vh;overflow-y:auto;padding-right:8px}
+  #stText::-webkit-scrollbar{width:6px}
+  #stText::-webkit-scrollbar-track{background:#0b0b0d}
+  #stText::-webkit-scrollbar-thumb{background:#9E1B25}
+  #stText p{margin:0 0 15px;font-size:15px;line-height:2.15;color:#d7dde3;
+    opacity:0;transform:translateY(8px);animation:stIn .5s ease both}
+  #stText p.q{color:#fff;border-left:3px solid #ffd23f;padding-left:12px}
+  #stText p.hr{color:#4a4a52;letter-spacing:.4em}
+  @keyframes stIn{to{opacity:1;transform:none}}
+  #stFoot{margin-top:20px;height:42px;display:flex;align-items:center;gap:14px}
+  #stHint{font-size:11.5px;color:#5a5a62;letter-spacing:.1em}
+  #stOk{padding:9px 30px;background:#9E1B25;color:#fff;border:0;cursor:pointer;
+    font-family:var(--sans);font-size:13.5px;transform:skewX(-9deg);
+    opacity:0;pointer-events:none;transition:opacity .3s}
+  #stOk.on{opacity:1;pointer-events:auto}
+  #stOk:hover{background:#b52430}
+
+  /* 全屏 CG */
+  #cgShow{position:absolute;inset:0;z-index:38;display:none;background:#000}
+  #cgShow.on{display:block}
+  #cgShow img{width:100%;height:100%;object-fit:contain;opacity:0;
+    transition:opacity .5s}
+  #cgShow.in img{opacity:1}
+  #cgShow .band{position:absolute;left:0;right:0;bottom:0;padding:16px 26px 18px;
+    background:linear-gradient(transparent,rgba(0,0,0,.85));
+    display:flex;align-items:baseline;gap:12px;opacity:0;transition:opacity .4s}
+  #cgShow.in .band{opacity:1}
+  #cgShow .band b{font-family:Impact,var(--sans);font-size:20px;color:#fff;font-weight:400;
+    text-shadow:2px 2px 0 #9E1B25}
+  #cgShow .band small{font-size:11.5px;color:#c9d1d8;letter-spacing:.1em}
   /* 演示现场要能一键闭麦，所以放在主界面而不是埋进设置 */
   #btnMuteHome{position:absolute;right:18px;top:16px;z-index:5;
     background:rgba(14,18,23,.7);color:#c9d1d8;border:1px solid rgba(255,255,255,.16);
@@ -939,6 +1093,7 @@
       <button id="btnRecords" class="ghostBtn"><span>学习记录</span></button>
       <button id="btnStore" class="ghostBtn"><span>专注星商店</span></button>
       <button id="btnDesk" class="ghostBtn"><span>布置桌面</span></button>
+      <button id="btnGallery" class="ghostBtn"><span>共同相册</span></button>
       <button id="btnSettings" class="ghostBtn"><span>设置</span></button>
     </div>
     <div id="homePointsRow">拥有 <b id="homePoints">0</b> 点专注星</div>
@@ -982,6 +1137,55 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <div id="gallery" class="veil">
+    <div class="p5bg"></div><div class="p5dots"></div>
+    <div class="p5head">
+      <h2>GALLERY</h2>
+      <span class="mo">共同相册</span>
+      <span class="grow">
+        <span class="p5stat"><b id="galCount">0</b>张</span>
+        <button class="back" id="galBack">返回</button>
+      </span>
+    </div>
+    <div id="galBody"></div>
+    <div id="cgView">
+      <button id="cgClose">&times;</button>
+      <img id="cgViewImg" alt="">
+      <div class="cap" id="cgViewCap"></div>
+    </div>
+  </div>
+
+  <div id="persona" class="veil">
+    <div class="p5bg"></div><div class="p5dots"></div>
+    <div class="p5head">
+      <h2>PROFILE</h2>
+      <span class="mo" id="personaMo">同行</span>
+      <span class="grow"><button class="back" id="personaBack">返回</button></span>
+    </div>
+    <div id="personaBody">
+      <div id="personaArt"><img id="personaImg" alt=""></div>
+      <div id="personaInfo"></div>
+    </div>
+    <div id="personaFoot">
+      <button id="btnBondGo" class="bigBtn"><span>选择与她同行</span></button>
+    </div>
+  </div>
+
+  <div id="storyView">
+    <div class="stTitle" id="stChapter">CHAPTER 01</div>
+    <h3 class="stName" id="stName">空出来的座位</h3>
+    <div id="stText"></div>
+    <div id="stFoot">
+      <span id="stHint">正在讲述…</span>
+      <button id="stOk">继续</button>
+    </div>
+  </div>
+
+  <div id="cgShow">
+    <img id="cgShowImg" alt="">
+    <div class="band"><b id="cgShowName"></b><small id="cgShowNote">已收录至共同相册</small></div>
   </div>
 
   <div id="store" class="veil">

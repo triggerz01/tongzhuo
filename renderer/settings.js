@@ -25,12 +25,15 @@ const CAST = [
 
 const MODES = [
   { id: 'student', name: '学生陪伴', desc: '一个同龄人坐在对面。她不查你，只是一直在。' },
-  { id: 'teacher', name: '老师监督', desc: '老师站在讲台上看着你。语气更硬，但不羞辱人。' }
+  { id: 'teacher', name: '老师监督', desc: '老师站在讲台上看着你。语气更硬，但不羞辱人。' },
+  { id: 'bond',    name: '同行',
+    desc: '她有自己的名字、来历和想去的地方。你们一起坐过的时间，会变成故事。' }
 ];
 
 /* 每种模式的默认人物。切模式时自动换成对应角色 ——
    总不能让老师坐在你对面写作业。 */
-const MODE_DEFAULT = { student: 'AvatarSample_A.vrm', teacher: 'teacher.vrm' };
+const MODE_DEFAULT = { student: 'AvatarSample_A.vrm', teacher: 'teacher.vrm',
+                       bond: 'AvatarSample_A.vrm' };
 
 const DEFAULTS = { mode: 'student', model: 'AvatarSample_A.vrm',
                    lastStudent: 'AvatarSample_A.vrm' };
@@ -51,6 +54,7 @@ export const settings = {
 
 /* 目录里多出来的 .vrm 也列出来，保持"丢进去就能用" */
 let cast = CAST.slice();
+let onPersona = null;          // 同行模式点人物卡时打开角色页
 async function mergeFound() {
   try {
     if (!(window.tz && window.tz.listModels)) return;
@@ -103,8 +107,12 @@ function renderPeers() {
   box.innerHTML = '';
   // 老师模式只有老师，学生模式不列老师
   const want = st.mode === 'teacher' ? 'teacher' : 'student';
-  const rows = cast.filter(c => c.role === want);
-  $('peerTitle').textContent = want === 'teacher' ? '选择监督者' : '选择同桌';
+  // 同行模式目前只有周以宁（女生模型）。以后加男生线就把它也标成 bond 可选。
+  const rows = st.mode === 'bond'
+    ? cast.filter(c => c.file === 'AvatarSample_A.vrm')
+    : cast.filter(c => c.role === want);
+  $('peerTitle').textContent =
+    st.mode === 'teacher' ? '选择监督者' : (st.mode === 'bond' ? '选择同行的人' : '选择同桌');
   rows.forEach((c) => {
     const b = document.createElement('button');
     b.className = 'peerCard' + (c.file === st.model ? ' on' : '');
@@ -112,15 +120,23 @@ function renderPeers() {
       (c.thumb ? `<img class="pic" src="${c.thumb}" alt="">`
                : `<span class="pic" style="background:#1b2027;display:block"></span>`) +
       `<span class="cap"><b>${c.name}</b><small>${c.desc}</small></span>`;
-    b.addEventListener('click', () => pick(c));
+    b.addEventListener('click', () => {
+      // 同行模式先看资料页，那里才有"选择与她同行"。
+      // 直接换人会跳过你们之间的进度和剧情，那是这个模式的全部意义。
+      if (settings.get().mode === 'bond' && onPersona) onPersona('yining');
+      else pick(c);
+    });
     box.appendChild(b);
   });
   $('peerSec').style.display = box.children.length ? '' : 'none';
   const tip = $('peerTip');
   if (tip) {
-    tip.style.display = (want === 'teacher') ? '' : 'none';
-    tip.textContent = '监督者目前只有一位。以后可以放更多的 .vrm 进 assets/models，'
-                    + '在 settings.js 的 CAST 里登记 role: "teacher" 就会出现在这里。';
+    const bondMode = st.mode === 'bond';
+    tip.style.display = (want === 'teacher' || bondMode) ? '' : 'none';
+    tip.textContent = bondMode
+      ? '同行模式目前只有周以宁一条线。点她可以先看看她是谁、你们走到哪儿了。'
+      : '监督者目前只有一位。以后可以放更多的 .vrm 进 assets/models，'
+        + '在 settings.js 的 CAST 里登记 role: "teacher" 就会出现在这里。';
   }
 }
 
@@ -132,14 +148,15 @@ async function switchMode(id) {
   // 离开学生模式前记住你选的是男生还是女生，切回来要还原
   const patch = { mode: id };
   if (st.mode === 'student') patch.lastStudent = st.model;
+  // 每种模式有自己的默认人物。同行模式用的是学生那批，不是老师 ——
+  // 这里以前写死成 MODE_DEFAULT.teacher，切同行会把老师搬进自习室。
   const want = (id === 'student')
     ? (st.lastStudent || MODE_DEFAULT.student)
-    : MODE_DEFAULT.teacher;
+    : (MODE_DEFAULT[id] || MODE_DEFAULT.student);
   patch.model = want;
   settings.set(patch);
   render();
 
-  const who = cast.find(c => c.file === want);
   await withSwap(async () => {
     if (window.TZRoom) {
       // 顺序要紧：先切模式（决定坐姿还是站姿、哪套动作和台词），
@@ -148,8 +165,9 @@ async function switchMode(id) {
       if (window.TZRoom.reload) await window.TZRoom.reload('../assets/models/' + want);
       if (window.TZRoom.voice) window.TZRoom.voice.setCharacter(want);
     }
-  }, id === 'teacher' ? '老师监督' : '学生陪伴');
-  if (who) await reveal(who);
+  }, id === 'teacher' ? '老师监督' : (id === 'bond' ? '同行' : '学生陪伴'));
+  // 切完模式不再自动播"选中这个人"的亮相 —— 那是点人物卡才该有的反馈。
+  // 换模式只是换了个抽屉，还没挑东西。
 }
 
 async function pick(c) {
@@ -181,7 +199,8 @@ async function reveal(c) {
 function render() { renderModes(); renderPeers(); }
 
 /* ---------------- 装配 ---------------- */
-export function initSettings(show) {
+export function initSettings(show, personaFn) {
+  onPersona = personaFn;
   $('btnSettings').addEventListener('click', async () => {
     await mergeFound();
     render();

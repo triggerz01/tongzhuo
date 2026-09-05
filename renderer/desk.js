@@ -19,6 +19,7 @@
 
 const KEY = 'tongzhuo.desk.v1';
 const $ = (id) => document.getElementById(id);
+import * as bond from './bond.js';
 
 /* 格子是规整的：桌沿（0.72）到画面底边平分成三排，每排等高、通栏，
    六列等宽。透视只体现在物件的缩放上，不体现在格子形状上 ——
@@ -145,8 +146,10 @@ let picked = null;         // 当前选中的商品 id
 let onExit = null;
 
 function renderTray() {
-  const owned = catalog.filter(c =>
-    c.type === 'item' && window.TZPoints && window.TZPoints.owns(c.id));
+  // 商店买的 + 剧情送的，都能摆
+  const gifts = bond.get('yining').gifts || [];
+  const owned = catalog.filter(c => c.type === 'item' && (
+    gifts.includes(c.id) || (window.TZPoints && window.TZPoints.owns(c.id))));
   const box = $('deskTray');
   box.innerHTML = '';
   if (!owned.length) {

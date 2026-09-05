@@ -102,6 +102,21 @@
     ]
   },
   {
+    "id": "item_bluebook",
+    "name": "蓝色错题本",
+    "type": "item",
+    "price": 0,
+    "description": "周以宁的错题本。封皮磨得起毛了，第一页夹着那张差点被扔掉的卷子。剧情赠礼，商店买不到。",
+    "preview": "assets/items/bluebook.png",
+    "asset": "assets/items/bluebook.png",
+    "cells": [
+      1,
+      1
+    ],
+    "available": false,
+    "story": true
+  },
+  {
     "id": "scene_study_night",
     "name": "自习室（夜）",
     "type": "scene",

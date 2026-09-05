@@ -15,6 +15,8 @@ import { initSettle, showSettle } from './settle.js';
 import { initStore, paintBalance } from './store.js';
 import { initDesk, renderDesk } from './desk.js';
 import { initStory } from './story.js';   // 剧情：ban-jiang 的地盘
+import { initCompanion, openPersona, playPendingBefore } from './companion.js';
+import * as bond from './bond.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -72,6 +74,8 @@ function show(v) {
   $('setup').classList.toggle('on', v === 'setup');
   $('settings').classList.toggle('on', v === 'settings');
   $('calib').classList.toggle('on', v === 'calib');
+  $('gallery').classList.toggle('on', v === 'gallery');
+  $('persona').classList.toggle('on', v === 'persona');
   if (v !== 'settle') $('settle').classList.remove('on');
   if (v !== 'store') $('store').classList.remove('on');
   if (v !== 'home') $('records').classList.remove('on');
@@ -130,6 +134,8 @@ export function paintModeUI() {
     && window.TZRoom.modeNow() === 'teacher';
   const b = $('btnDesk');
   if (b) b.style.display = teacher ? 'none' : '';
+  const g = $('btnGallery');
+  if (g) g.style.display = teacher ? 'none' : '';
 }
 
 function paintCamStatus() {
@@ -140,12 +146,23 @@ function paintCamStatus() {
 }
 
 /* ---------------- 开始 / 结束 ---------------- */
-function begin() {
+async function begin() {
   const m = Math.max(1, Math.min(600, Number($('durCustom').value) || state.minutes));
   state.minutes = m;
+
+  // 同行模式：门槛到了但还没读的章节，先讲完再进房间。
+  // 放在这儿而不是结算之后 —— 她"有话想说"应该发生在你坐下之前，
+  // 那样接下来这一场才是带着这段话在学。
+  if (isBond()) {
+    try { await playPendingBefore('yining'); } catch (e) { console.warn('[bond]', e); }
+  }
+
   show('session');
   window.TZRoom.startSession({ minutes: m, breakMin: state.breakMin });
 }
+
+const isBond = () => window.TZRoom && window.TZRoom.modeNow
+  && window.TZRoom.modeNow() === 'bond';
 
 /** 时长到了或手动结束 —— 回主界面，带一张小结 */
 function finish(summary) {
@@ -170,6 +187,18 @@ function finish(summary) {
       scene: (names[state.scene] || '').replace(/^\d+-/, '')
     });
   } catch (e) { console.warn('[home] 记录写入失败', e); }
+  // 同行模式：把这一场的有效专注记到她账上，跨没跨新章节交给结算页去说
+  if (isBond()) {
+    const r = bond.addFocus('yining', s.focusMin || 0);
+    s.bond = {
+      who: bond.CAST_BOND.yining.name,
+      total: r.after,
+      crossed: r.crossed.map(c => ({
+        n: bond.CHAPTERS.indexOf(c) + 1, title: c.title,
+        gift: c.gift ? c.gift.name : null
+      }))
+    };
+  }
   // 先看结算，点"知道了"才回主界面
   showSettle(s);
 }
@@ -202,7 +231,12 @@ function init() {
 
   initVideo();
   initRecords();
-  initSettings(show);
+  initSettings(show, (key) => { openPersona(key); });
+  initCompanion(show, (key) => {
+    // 在角色页点了"选择与她同行"：确认这条线，回主界面
+    show('home');
+    paintModeUI();
+  });
   initSettle(() => { show('home'); paintBalance(); });
   window.__settle = showSettle;
   initStore(() => show('home'));

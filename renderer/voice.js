@@ -138,13 +138,109 @@ export const LINES_TEACHER = {
   sigh: [], yawn: [], hum: []
 };
 
+/* 同行模式的台词。没有录音，只出字幕。
+ * 和学生陪伴最大的不同：她有名字、有来历，说话是有指向的 ——
+ * 「我这边也在算最后一道」比「你已经坐了很久了」更像一个具体的人。
+ *
+ * 分阶段：随着章节推进，她越来越放松，也越来越敢主动。
+ * setStage() 由 room.js 在开场时按当前章节数调。 */
+export const LINES_BOND = {
+  base: {
+    sessionStart: [
+      ['b_start_01', '那开始吧。结束以后，我们都不许说自己什么也没完成。'],
+      ['b_start_02', '我今天要把落下的那部分补回来。你呢？'],
+      ['b_start_03', '嗯，我坐这儿了。']
+    ],
+    cameraOn: [['b_cam_01', '看到你了。']],
+    sessionFinish: [
+      ['b_finish_01', '时间到了。今天两个人都算完成了。'],
+      ['b_finish_02', '收工。明天这个点，我还在这儿。']
+    ],
+    sessionEarlyEnd: [
+      ['b_early_01', '今天先到这儿吧。没关系。'],
+      ['b_early_02', '行。剩下的下次一起做。']
+    ],
+    praise: [
+      ['b_praise_01', '你一直没停。我这边也在算最后一道。'],
+      ['b_praise_02', '这一段很稳。'],
+      ['b_praise_03', '嗯……你今天比我专心。']
+    ],
+    phone: [
+      ['b_phone_01', '手机。'],
+      ['b_phone_02', '……我看见了。'],
+      ['b_phone_03', '我等你。']
+    ],
+    away: [
+      ['b_away_01', '人呢。'],
+      ['b_away_02', '位置我给你留着。'],
+      ['b_away_03', '你不在的时候，这儿有点太安静了。']
+    ],
+    welcome: [
+      ['b_welcome_01', '回来了。'],
+      ['b_welcome_02', '我就知道你会回来。'],
+      ['b_welcome_03', '坐吧，我等你呢。']
+    ],
+    sleepy: [['b_sleepy_01', '……困了？'], ['b_sleepy_02', '要不趴一会儿，我看着时间。']],
+    puzzled: [['b_puzzled_01', '我看不见你了。'], ['b_puzzled_02', '挡住了。']],
+    backturn: [['b_backturn_01', '你转过去干嘛呢。'], ['b_backturn_02', '背对着我啦？']],
+    sigh: [], yawn: [], hum: []
+  },
+  /* 分阶段覆盖。key 是"读完第几章之后"，只写要变的那几类。 */
+  2: {
+    sessionStart: [
+      ['b2_start_01', '上次那道题我做完了。今天换你带我。'],
+      ['b2_start_02', '……你今天也会把写下来的做完吧？']
+    ]
+  },
+  4: {
+    praise: [
+      ['b4_praise_01', '你一直没抬头。我把那张卷子重新抄了一遍。'],
+      ['b4_praise_02', '我现在不怕看错题了。你继续。']
+    ],
+    sessionStart: [
+      ['b4_start_01', '错题本又厚了一点。今天继续。'],
+      ['b4_start_02', '我把上次错的那些重新做了。这次不撕了。']
+    ]
+  },
+  6: {
+    sessionStart: [
+      ['b6_start_01', '我今天早到了。位置给你留着呢。'],
+      ['b6_start_02', '这次换我等你。坐吧。']
+    ],
+    away: [
+      ['b6_away_01', '去吧，我等你。'],
+      ['b6_away_02', '位置我看着，跑不了。']
+    ]
+  },
+  7: {
+    sessionStart: [
+      ['b7_start_01', '换了教学楼也一样。我们说好的。'],
+      ['b7_start_02', '是不是同桌，不是由座位决定的。今天继续。']
+    ]
+  }
+};
+
 const SETS = { student: LINES, teacher: LINES_TEACHER };
 let lineSet = LINES;
+let bondStage = 0;
 
-/** 切台词本。mode 是 'student' | 'teacher' */
+/** 切台词本。mode 是 'student' | 'teacher' | 'bond' */
 export function setLineSet(mode) {
+  if (mode === 'bond') { lineSet = null; return mode; }   // bond 走 setStage 的合成表
   lineSet = SETS[mode] || LINES;
   return mode;
+}
+
+/** 同行模式：按当前章节数合成一份台词本（阶段覆盖压在 base 之上） */
+export function setStage(n) {
+  bondStage = n | 0;
+  const merged = Object.assign({}, LINES_BOND.base);
+  for (let i = 1; i <= bondStage; i++) {
+    const patch = LINES_BOND[i];
+    if (patch) Object.assign(merged, patch);
+  }
+  lineSet = merged;
+  return bondStage;
 }
 
 const PACK = { girl: 'AvatarSample_A.vrm' };     // 哪个模型用哪套音频包
@@ -173,6 +269,7 @@ export function setVolume(v) { volume = Math.max(0, Math.min(1, v)); return volu
 
 /** 从一类里挑一条，尽量不连着重复 */
 function pick(kind) {
+  if (!lineSet) setStage(bondStage);      // 切到 bond 还没定阶段时兜一下
   const rows = lineSet[kind];
   if (!rows || !rows.length) return null;
   if (rows.length === 1) return rows[0];

@@ -12,6 +12,7 @@ import { Expressions, STATE_FACE } from './expression.js';
 import { settings } from './settings.js';
 import * as voice from './voice.js';
 import * as shots from './shots.js';
+import * as bond from './bond.js';
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -721,10 +722,13 @@ function react(name, silent) {
  * 锁定/恢复场景、重新取景（坐姿 vs 站姿）。
  */
 function setRoomMode(mode) {
+  // 同行模式的自习过程和学生陪伴一模一样 —— 坐姿、桌子、摆件、反应全照搬。
+  // 所以渲染上仍按 student 走，只把"当前是哪种模式"另记一份给界面用。
+  personaMode = (mode === 'bond') ? 'bond' : null;
   const next = (mode === 'teacher') ? 'teacher' : 'student';
-  if (next === roomMode) return roomMode;
+  voice.setLineSet(mode === 'bond' ? 'bond' : next);
+  if (next === roomMode) { frameCamera(); return modeNow(); }
   roomMode = next;
-  voice.setLineSet(roomMode);
   hipsOn = false; hipsNextAt = 0;
   applyPose(null, { seconds: 0.2 });
 
@@ -737,8 +741,12 @@ function setRoomMode(mode) {
   // 底层循环坐姿站姿不一样，重挑一个就行 —— 千万别在这儿重新加载，见 rebaseAnimation 的注释
   rebaseAnimation();
   frameCamera();
-  return roomMode;
+  return modeNow();
 }
+
+/* 对外说的是三种模式；内部渲染只有两套（坐姿 / 站姿）。 */
+let personaMode = null;
+const modeNow = () => personaMode || roomMode;
 
 /** 老师模式只有一个场景，界面上不该给切换 */
 const sceneLocked = () => roomMode === 'teacher';
@@ -1409,6 +1417,10 @@ function startSession(opts) {
               byLabel: {},
               // 触发过提醒的时刻，详情页的时间线就是它
               events: [] };
+  // 同行模式：她说话的口吻随章节推进而变，开场时对一下当前进度
+  if (modeNow() === 'bond') {
+    voice.setStage(bond.stageOf(bond.get('yining').focusMin));
+  }
   if (window.TZPoints) window.TZPoints.startSession({ plannedMin: min });
   $('stateText').textContent = '自习中';
   $('fMin').value = min;
@@ -1572,7 +1584,7 @@ loadScenes().then((real) => {
   // 上次退出时是老师模式的话，进来就该是老师模式
   const savedMode = settings.get().mode;
   if (savedMode === 'teacher') { roomMode = 'student'; setRoomMode('teacher'); }
-  else voice.setLineSet('student');
+  else setRoomMode(savedMode === 'bond' ? 'bond' : 'student');
 })();
 
 // 用户不该为了用摄像头去手动开一个 Python 进程 —— 启动时自己拉起来。
@@ -1609,7 +1621,7 @@ window.TZRoom = {
   reactAs: react,
   shots,
   mode: setRoomMode,
-  modeNow: () => roomMode,
+  modeNow,
   sceneLocked,
   classFraming: framingTeacher,
   classFg: CLASS,
