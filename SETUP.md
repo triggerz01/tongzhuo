@@ -69,9 +69,13 @@ npm start -- --room    # 自习室形态（3D 角色 + 场景，主形态）
 
 ---
 
-## 3. 感知层（可选，要摄像头才需要）
+## 3. 感知层（要摄像头才需要）
 
-> ⚠️ **mediapipe / ultralytics 不支持 Python 3.14，必须用 3.12。**
+> **不用手动启动。** Electron 会自己把 `perception/server.py` 拉起来，
+> 界面右上角有「开启 / 关闭」和「重连」两个按钮。
+> 你只需要把 Python 环境装好，剩下的它自己来。
+
+> ⚠️ **mediapipe 不支持 Python 3.14，必须用 3.12。**
 > 3.12 最后一个带 Windows 安装包的版本是 **3.12.10**（之后只发源码）。
 
 python.org 的文件下载通道在国内经常超时，走镜像：
@@ -89,7 +93,13 @@ cd perception
 py -3.12 -m venv .venv          # 或者直接用 3.12 的完整路径
 .venv\Scripts\activate
 pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
-python server.py                # 加 --show 开预览窗看检测结果
+```
+
+装完就行，**不用运行 `server.py`** —— Electron 会自己拉起它。
+只有单独调试感知层时才需要手动跑：
+
+```bash
+python server.py --show      # --show 会开一个预览窗看检测结果
 ```
 
 **注意 `-i https://mirrors.aliyun.com/pypi/simple/`**。清华源在有代理的环境下会 SSL 握手失败，实测报 `SSL: UNEXPECTED_EOF_WHILE_READING`。阿里、华为、腾讯源和官方源都正常。
@@ -100,7 +110,10 @@ python server.py                # 加 --show 开预览窗看检测结果
 > 它需要一个 `.task` 模型文件，已经放在 `perception/models/` 里随仓库分发，
 > **不需要联网下载**，赛场断网也能跑。
 
-`ultralytics` 会拉 torch（约 2GB），赶时间可以先不装——**不装也能跑**，只是手机检测那一类不生效。
+> **不需要 ultralytics / torch。** 手机和人体检测用的是 mediapipe 自带的
+> ObjectDetector + EfficientDet-Lite（模型在素材包里）。原本打算用 YOLOv8n，
+> 但它依赖 torch，124MB 的 wheel 在国内网络下反复下不完（阿里、腾讯镜像都试过）。
+> 换成 mediapipe 自带的之后零新依赖，模型还小一个数量级。
 
 ---
 
@@ -112,7 +125,8 @@ npm start -- --room
 
 应该看到：3D 角色坐在自习室里，会呼吸、会眨眼、隔十几秒做一个小动作。右下角能切场景、测动作。
 
-感知层跑起来之后，窗口左上角的小圆点会变红，表示摄像头在工作。
+点右上角的「开启」之后，小圆点会变红，表示摄像头在工作。
+**摄像头默认不开** —— 这是隐私上该有的默认值。
 
 ---
 

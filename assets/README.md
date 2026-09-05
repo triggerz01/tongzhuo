@@ -6,8 +6,8 @@
 | 目录 | 放什么 | 大小 | 没有会怎样 |
 |---|---|---|---|
 | `assets/models/` | `.vrm` 角色模型 | ~18 MB | 自习室里没有人，界面提示放模型 |
-| `assets/animations/` | Mixamo 的 `.fbx` 动作 | ~8 MB | 角色还在，退回程序化待机（呼吸/眨眼/骨骼动作） |
-| `perception/models/` | `face_landmarker.task` | ~3.8 MB | 感知层起不来，桌面端不受影响 |
+| `assets/animations/` | Mixamo 的 `.fbx` 动作（10 个） | ~11 MB | 角色还在，退回程序化待机（呼吸/眨眼/骨骼动作） |
+| `perception/models/` | 人脸 + 目标检测模型（3 个文件） | ~39 MB | 感知层起不来，桌面端不受影响 |
 
 已经在仓库里的小文件（场景图、实拍照片）不用管。
 
