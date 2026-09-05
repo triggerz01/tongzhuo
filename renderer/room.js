@@ -11,6 +11,7 @@ import { loadMixamoAnimation } from './mixamo.js';
 import { Expressions, STATE_FACE } from './expression.js';
 import { settings } from './settings.js';
 import * as voice from './voice.js';
+import * as shots from './shots.js';
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -562,6 +563,15 @@ function onPerception(m) {
   }
   if (m.type === 'mode') $('calibTip').textContent =
     OUTLINES[calibMode].tip + `　（画面 ${m.size ? m.size.join('×') : ''}）`;
+  if (m.type === 'snapshot') {
+    const want = pendingShot;
+    pendingShot = null;
+    if (!m.ok || !session || !want) return;
+    const id = shots.add('data:image/jpeg;base64,' + m.data,
+                         { at: want.at, kind: m.tag || 'phone' });
+    const ev = session.events[want.index];
+    if (ev) ev.shot = id;      // 记录里只留 id，图片存在 shots 那边
+  }
   if (m.type === 'error') say('摄像头出错：' + m.message, 5000);
 }
 
@@ -615,13 +625,16 @@ function react(name, silent) {
  * 原则：状态一变就反应会显得神经质。除了"遮挡镜头"这种明确信号，
  * 其余都要等持续够久才触发 —— 阈值全在 LINK 里，方便调。
  */
+/* 全部用秒。以前是分钟，想调到 15 秒得写 0.25，很容易看错。
+   现在这一组是**测试值**，演示前要按真实节奏调回去：
+   专注 15~25 分钟、手机 1 分钟、离席 5 分钟。 */
 const LINK = {
-  focusPraiseMin: 1,      // 连续专注满这么久 → 开心夸你（之后每隔同样时间再夸一次）
-  phoneScoldMin: 1,       // 玩手机满这么久 → 失望皱眉
-  awayLonelyMin: 2,       // 离席满这么久 → 难过
-  welcomeAfterAwayMin: 2, // 离席至少这么久，回来才值得说"你回来了"
-  reactCooldownSec: 45,   // 任意两次大反应之间的最小间隔
-  cuteGapMin: [4, 9]      // 待机小插曲（犯困/疑惑）的随机间隔
+  focusPraiseSec: 60,      // 连续专注满这么久 → 开心夸你（之后每隔同样时间再夸一次）
+  phoneScoldSec: 15,       // 玩手机满这么久 → 失望皱眉 + 抓拍
+  awayLonelySec: 120,      // 离席满这么久 → 难过
+  welcomeAfterAwaySec: 120,// 离席至少这么久，回来才值得说"你回来了"
+  reactCooldownSec: 20,    // 任意两次大反应之间的最小间隔
+  cuteGapMin: [4, 9]       // 待机小插曲（犯困/疑惑）的随机间隔，分钟
 };
 
 // 当前这一段连续状态
@@ -641,9 +654,17 @@ const EVENT_KIND = {
   backturn: 'backturn'
 };
 
+/** 抓拍：等服务端把图送回来时，知道该挂到哪条事件上 */
+let pendingShot = null;
+
 function fire(name, line) {
   if (!canReact()) return false;
   lastReactAt = Date.now();
+  // 玩手机被提醒的这一刻抓一张留证。摄像头没开就没有画面，跳过。
+  if (name === 'disappoint' && session && camOn) {
+    pendingShot = { at: Date.now(), index: session.events.length };
+    wsSend({ cmd: 'snapshot', tag: 'phone' });
+  }
   if (session && EVENT_KIND[name]) {
     const kind = EVENT_KIND[name];
     session.events.push({
@@ -673,7 +694,7 @@ function onState(label, duration) {
       if (label === 'phone' || label === 'drowsy') session.distractCount++;
     }
     // 离席够久再回到专注，才值得说"你回来了"
-    if (label === 'focus' && lastAwaySec >= LINK.welcomeAfterAwayMin * 60) {
+    if (label === 'focus' && lastAwaySec >= LINK.welcomeAfterAwaySec) {
       lastAwaySec = 0;
       fire('welcome');
     } else if (label === 'covered') {
@@ -691,15 +712,14 @@ function onState(label, duration) {
   epDur = duration;
 
   // 持续够久才触发的那几条
-  const min = (m) => m * 60;
-  if (label === 'focus' && duration >= (epNextAt.praise ?? min(LINK.focusPraiseMin))) {
-    if (fire('praise')) epNextAt.praise = duration + min(LINK.focusPraiseMin);
+  if (label === 'focus' && duration >= (epNextAt.praise ?? LINK.focusPraiseSec)) {
+    if (fire('praise')) epNextAt.praise = duration + LINK.focusPraiseSec;
   }
-  if (label === 'phone' && duration >= (epNextAt.phone ?? min(LINK.phoneScoldMin))) {
-    if (fire('disappoint')) epNextAt.phone = duration + min(LINK.phoneScoldMin);
+  if (label === 'phone' && duration >= (epNextAt.phone ?? LINK.phoneScoldSec)) {
+    if (fire('disappoint')) epNextAt.phone = duration + LINK.phoneScoldSec;
   }
-  if (label === 'away' && duration >= (epNextAt.away ?? min(LINK.awayLonelyMin))) {
-    if (fire('lonely')) epNextAt.away = duration + min(LINK.awayLonelyMin) * 2;
+  if (label === 'away' && duration >= (epNextAt.away ?? LINK.awayLonelySec)) {
+    if (fire('lonely')) epNextAt.away = duration + LINK.awayLonelySec * 2;
   }
   if (label === 'drowsy' && !epFired.drowsy) {
     epFired.drowsy = true;
@@ -1182,6 +1202,7 @@ loadScenes().then((real) => {
   // 音频包按角色分。目前只有女生有；男生和老师没有包，退化成只出字幕。
   voice.setCharacter(settings.get().model);
   voice.warmup();          // 先把时长量出来，第一次触发口型就是准的
+  shots.prune();           // 抓拍只留 7 天，启动时清一次
 })();
 
 // 用户不该为了用摄像头去手动开一个 Python 进程 —— 启动时自己拉起来。
@@ -1216,6 +1237,7 @@ window.TZRoom = {
                       lastAwaySec, cooldownLeft: Math.max(0,
                         LINK.reactCooldownSec * 1000 - (Date.now() - lastReactAt)) / 1000 }),
   reactAs: react,
+  shots,
   voice: {
     play: (kind) => voice.play(kind, {
       onText: (t) => say(t, 3200),

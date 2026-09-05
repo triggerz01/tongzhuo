@@ -83,7 +83,9 @@
      会把检测器饿死。 */
   #pip{position:absolute;right:14px;bottom:14px;width:260px;
        border:1px solid rgba(255,255,255,.18);border-radius:6px;overflow:hidden;
-       background:#0d1014;box-shadow:0 6px 22px rgba(0,0,0,.45);z-index:5}
+       background:#0d1014;box-shadow:0 6px 22px rgba(0,0,0,.45);
+       /* 画中人压在摆件之上，但仍在遮罩（z-index 30）之下 */
+       z-index:28}
   #pipImg{display:block;width:100%;height:auto;background:#0d1014;min-height:60px}
   #pip .pipBar{display:flex;align-items:center;gap:8px;padding:4px 6px 4px 9px;
        font-family:var(--mono);font-size:10.5px;color:#9aa3ab;
@@ -378,7 +380,10 @@
 
   /* ---------------- 桌面摆件 ----------------
      贴在 #fg（桌面）之上。锚点是底边中点 —— 物体和桌面接触的那一点。 */
-  #deskLayer,#deskEditLayer{position:absolute;inset:0;pointer-events:none}
+  /* z-index 必须写在这里：摆件用内联 z-index 8~10 排前后关系，
+     而这层要是不建立层叠上下文，那几个数字就会直接和画中人（#pip）比大小，
+     摆件会把画中人盖住。给这层一个自己的上下文，里面的数字就只在里面有效。 */
+  #deskLayer,#deskEditLayer{position:absolute;inset:0;pointer-events:none;z-index:4}
   /* 显示框就是它占的那几格；图片贴着框底居中缩放 ——
      所以画布比例决定实际大小，台灯画得高就真的占满三排 */
   .deskItem{position:absolute;object-fit:contain;object-position:bottom center;
@@ -717,6 +722,15 @@
   .p5tl .at{font-family:Impact,monospace;font-size:14px;color:#8b8b92}
   .p5tl .wh{font-size:12.5px;color:#e6e6ea}
   .p5tl .dr{font-size:11px;color:#6c6c74}
+
+  /* 抓拍。刻意做小、做糊 —— 是给你自己回看的证据，不是相册 */
+  .p5shots{display:flex;gap:9px;flex-wrap:wrap}
+  .p5shots figure{margin:0;position:relative;width:118px;transform:skewX(-5deg);
+    box-shadow:3px 3px 0 rgba(0,0,0,.55);background:#0e0e10}
+  .p5shots img{display:block;width:100%;height:auto;filter:saturate(.85) contrast(1.05)}
+  .p5shots figcaption{position:absolute;left:0;bottom:0;padding:1px 6px;
+    background:#9E1B25;color:#fff;font-family:Impact,monospace;font-size:11px}
+  .shotNote{margin-top:9px;font-size:11px;color:#6c6c74;line-height:1.7}
 
   /* 每天的柱子 */
   .p5days{display:flex;align-items:flex-end;gap:3px;height:70px;background:#0e0e10;

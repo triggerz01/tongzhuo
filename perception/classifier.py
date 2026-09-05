@@ -17,7 +17,7 @@ from detectors import Frame
 DURATION = {
     "covered": 5.0,
     "away": 25.0,
-    "phone": 8.0,
+    "phone": 8.0,   # 服务端只是打个 trigger 标记，真正的提醒时长在前端 LINK 里
     "phone_near": 5.0,
     "drowsy": 20.0,
     "slump": 20.0,     # 趴桌
@@ -123,14 +123,17 @@ class Classifier:
         if f.brightness < 26 or f.variance < 55:
             return "covered"
 
+        # 三·手机 —— 必须排在人脸判断之前。
+        # 低头看手机时人脸经常丢失，要是先判"没脸"，标签就会变成 away/backturn，
+        # 手机那一段的计时会不停重新开始，永远攒不够触发时长。
+        # 检出手机本身就说明人在，没必要再要一张脸。
+        if f.phone:
+            return "phone"
+
         # 一·离开画面 vs 背对镜头：有没有人是两回事
         # （画面里检出 person 但没脸 = 背对或趴桌，阈值更长，见 DURATION）
         if not f.face:
             return "backturn" if f.person else "away"
-
-        # 三·手机（举到脸前的更快触发，交给 DURATION 区分）
-        if f.phone:
-            return "phone"
 
         # 二·困倦：低头超基线 + 闭眼 + 头部几乎不动
         pitch_off = f.pitch - b.pitch

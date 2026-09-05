@@ -10,6 +10,8 @@
  */
 'use strict';
 
+import * as shots from './shots.js';
+
 const KEY = 'tongzhuo.records.v1';
 const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -167,6 +169,20 @@ const mmss = (sec) =>
 const countKind = (list, k) =>
   list.reduce((s, r) => s + (r.events || []).filter(e => e.kind === k).length, 0);
 
+/** 抓拍。取不到就是已经过了 7 天被清掉了，正常，不显示这一块。 */
+function shotBlock(evs) {
+  const found = evs
+    .filter(e => e.shot)
+    .map(e => ({ t: e.t, s: shots.get(e.shot) }))
+    .filter(x => x.s);
+  if (!found.length) return '';
+  return `<h5>当时的样子</h5>
+    <div class="p5shots">${found.map(x =>
+      `<figure><img src="${x.s.src}" alt=""><figcaption>${mmss(x.t)}</figcaption></figure>`
+    ).join('')}</div>
+    <p class="shotNote">抓拍只留 7 天，之后自动删除。画面不出本机。</p>`;
+}
+
 function showSession(r) {
   const t = new Date(r.endedAt);
   const elapsed = r.elapsedMin || r.focusMin || 0;
@@ -213,6 +229,8 @@ function showSession(r) {
         <span class="dr">${e.dur ? '持续 ' + e.dur + 's' : ''}</span>
       </div>`).join('')}</div>`
     : '<p class="empty">这一场很安稳，一次都没被打断。</p>'}
+
+    ${shotBlock(evs)}
   `;
   document.getElementById('recSession').classList.add('on');
 }

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import json
 import time
 
@@ -73,6 +74,7 @@ class Perception:
         self._last_face_at = 0.0
         self._last_phone_at = 0.0
         self._boost_until = 0.0
+        self._last_bgr = None                  # 最近一帧原图，抓拍用
         self._last_frame: Frame = Frame()      # 两次推理之间，标注沿用上一次的结果
         self._last_res: dict = {"label": "unknown", "duration": 0.0,
                                 "trigger": False, "calibrating": False}
@@ -153,6 +155,7 @@ class Perception:
                 await asyncio.sleep(0.5)
                 continue
 
+            self._last_bgr = bgr
             now = time.time()
             live = self.preview and bool(self.clients)
 
@@ -231,6 +234,17 @@ class Perception:
             "fps": {"capture": CAPTURE_FPS_PREVIEW, "face": FACE_FPS_PREVIEW},
         }, ensure_ascii=False)
 
+    def _snapshot(self, tag: str) -> dict:
+        """抓一张当前画面。画质刻意压得很低 ——
+        这是给用户自己回看的证据，不是照片，糊一点反而没那么冒犯。"""
+        if self._last_bgr is None:
+            return {"type": "snapshot", "ok": False, "reason": "还没有画面", "tag": tag}
+        jpg = preview.encode(self._last_bgr, width=280, quality=42)
+        if not jpg:
+            return {"type": "snapshot", "ok": False, "reason": "编码失败", "tag": tag}
+        return {"type": "snapshot", "ok": True, "tag": tag, "ts": time.time(),
+                "data": base64.b64encode(jpg).decode("ascii")}
+
     async def handle(self, ws) -> None:
         self.clients.add(ws)
         await ws.send(self._hello())
@@ -261,6 +275,11 @@ class Perception:
                                               "changed": changed,
                                               "size": [MODES[self.mode]["w"],
                                                        MODES[self.mode]["h"]]},
+                                             ensure_ascii=False))
+                elif cmd == "snapshot":
+                    # 抓拍一张留证。走 JSON + base64 而不是二进制帧 ——
+                    # 二进制通道已经被画中人占了，混在一起前端分不清谁是谁。
+                    await ws.send(json.dumps(self._snapshot(msg.get("tag", "")),
                                              ensure_ascii=False))
                 elif cmd == "calibrate":
                     self.running = True
