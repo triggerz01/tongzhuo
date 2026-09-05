@@ -42,6 +42,14 @@ async function initVideo() {
   v.addEventListener('error', () => console.warn('[home] 背景视频加载失败'));
 }
 
+// 亮度可以在运行时调，方便对着屏幕试
+window.TZHome = {
+  brightness: (v) => { document.getElementById('homeVid').style.filter =
+    `brightness(${v}) contrast(1.04) saturate(1.06)`; return v; },
+  veil: (a) => { document.getElementById('home').style.background =
+    `radial-gradient(58% 46% at 50% 44%, rgba(6,8,11,${a}) 0%, rgba(6,8,11,${a*0.55}) 55%, transparent 100%)`; return a; }
+};
+
 function videoPlaying(on) {
   const v = $('homeVid');
   if (!v || !v.classList.contains('ready')) return;
