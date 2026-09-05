@@ -502,10 +502,16 @@
   .tnode.on i{background:#9E1B25;border-color:#ffd23f;color:#fff}
   .tnode em{position:absolute;top:26px;font-size:9.5px;color:#6c6c74;font-style:normal;
     white-space:nowrap}
-  .tnode.on em{color:#c9c9d0}
-  .tlineWrap{margin-bottom:34px}
-  /* 节点名是绝对定位挂在轴下面的，这里必须让开，否则会被压住 */
-  #tlineNow{margin-top:36px;font-size:12px;color:#8d97a1;line-height:1.8}
+  .tnode.on em{color:#ffd23f}
+  .tnode.on{cursor:pointer}
+  .tnode.on:hover i{background:#c02430;transform:rotate(45deg) scale(1.15)}
+  .tnode i{transition:transform .15s,background .15s}
+  .tlineWrap{margin-bottom:18px}
+  /* 节点标签是绝对定位挂在轴下面的，这里必须让开，否则会被压住。
+     选择器要写成 #personaInfo p#tlineNow —— 单个 #tlineNow 的优先级
+     比上面那条 #personaInfo p 低，margin 会被它压掉（踩过一次）。 */
+  #personaInfo p#tlineNow{margin:44px 0 0;font-size:12px;color:#8d97a1;line-height:1.85}
+  #tlineNow .tip{display:block;font-size:11px;color:#6c6c74;margin-top:4px}
   #tlineNow b{color:#ffd23f}
   #personaFoot{position:relative;z-index:2;display:flex;gap:10px;justify-content:flex-end;
     padding:0 26px 20px}
@@ -528,12 +534,35 @@
   #stText p.hr{color:#4a4a52;letter-spacing:.4em}
   @keyframes stIn{to{opacity:1;transform:none}}
   #stFoot{margin-top:20px;height:42px;display:flex;align-items:center;gap:14px}
+  /* 跳过：常驻右上角，两个页面都有。位置固定，用户不用找 */
+  .skipBtn{position:absolute;right:22px;top:18px;z-index:5;
+    background:rgba(20,22,26,.72);color:#8d97a1;border:1px solid rgba(255,255,255,.14);
+    padding:6px 16px;font-family:var(--sans);font-size:12px;cursor:pointer;
+    transform:skewX(-9deg)}
+  .skipBtn:hover{color:#fff;border-color:rgba(255,255,255,.36)}
   #stHint{font-size:11.5px;color:#5a5a62;letter-spacing:.1em}
   #stOk{padding:9px 30px;background:#9E1B25;color:#fff;border:0;cursor:pointer;
     font-family:var(--sans);font-size:13.5px;transform:skewX(-9deg);
     opacity:0;pointer-events:none;transition:opacity .3s}
   #stOk.on{opacity:1;pointer-events:auto}
   #stOk:hover{background:#b52430}
+
+  /* 回顾确认 */
+  #reviewAsk{position:absolute;inset:0;z-index:40;display:flex;align-items:center;
+    justify-content:center;background:rgba(6,6,8,.74);opacity:0;pointer-events:none;
+    transition:opacity .18s}
+  #reviewAsk.on{opacity:1;pointer-events:auto}
+  #reviewAsk .card{width:min(400px,86%);background:#131315;padding:22px 24px 24px;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);
+    box-shadow:8px 8px 0 rgba(0,0,0,.55);transform:skewX(-2deg)}
+  #reviewAsk .card > *{transform:skewX(2deg)}
+  #reviewAsk h3{margin:0 0 8px;font-family:Impact,var(--sans);font-size:20px;color:#fff;
+    font-weight:400;letter-spacing:.04em}
+  #reviewAsk p{margin:0;font-size:12.5px;color:#8d97a1;line-height:1.8}
+  #reviewAsk .acts{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}
+  #reviewAsk .acts button{padding:7px 16px;border:0;cursor:pointer;font-family:var(--sans);
+    font-size:12.5px;transform:skewX(-9deg);background:#22242a;color:#c9d1d8}
+  #reviewAsk .acts button.ok{background:#9E1B25;color:#fff}
 
   /* 全屏 CG */
   #cgShow{position:absolute;inset:0;z-index:38;display:none;background:#000}
@@ -661,8 +690,10 @@
     padding:0;overflow:hidden;font-family:var(--sans)}
   .peerCard .pic{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;
     filter:grayscale(.55) brightness(.82);transition:filter .25s}
-  .peerCard .cap{position:absolute;left:0;right:0;bottom:0;padding:7px 9px 8px;
-    background:linear-gradient(transparent,rgba(0,0,0,.88) 45%)}
+  /* z-index 必须有：选中态的半调网点是 ::after，绘制在 .cap 之后，
+     不抬一层就会把名字盖住 —— 场景卡当初也栽过同一个坑。 */
+  .peerCard .cap{position:absolute;left:0;right:0;bottom:0;padding:7px 9px 8px;z-index:3;
+    background:linear-gradient(transparent,rgba(0,0,0,.9) 45%)}
   .peerCard .cap b{display:block;font-size:13.5px;color:#e8ecef}
   .peerCard .cap small{display:block;font-size:10.5px;color:#9aa3ab;margin-top:2px;line-height:1.5}
   .peerCard:hover .pic{filter:grayscale(.15) brightness(.95)}
@@ -1174,6 +1205,7 @@
   </div>
 
   <div id="storyView">
+    <button class="skipBtn" id="stSkip">跳过剧情</button>
     <div class="stTitle" id="stChapter">CHAPTER 01</div>
     <h3 class="stName" id="stName">空出来的座位</h3>
     <div id="stText"></div>
@@ -1184,8 +1216,20 @@
   </div>
 
   <div id="cgShow">
+    <button class="skipBtn" id="cgSkip">跳过剧情</button>
     <img id="cgShowImg" alt="">
     <div class="band"><b id="cgShowName"></b><small id="cgShowNote">已收录至共同相册</small></div>
+  </div>
+
+  <div id="reviewAsk">
+    <div class="card">
+      <h3 id="reviewTitle"></h3>
+      <p id="reviewText"></p>
+      <div class="acts">
+        <button id="reviewNo">不了</button>
+        <button id="reviewYes" class="ok">回顾这一段</button>
+      </div>
+    </div>
   </div>
 
   <div id="store" class="veil">

@@ -10,6 +10,8 @@
  */
 'use strict';
 
+import { CAST_BOND } from './bond.js';
+
 const KEY = 'tongzhuo.settings.v1';
 const $ = (id) => document.getElementById(id);
 
@@ -116,10 +118,16 @@ function renderPeers() {
   rows.forEach((c) => {
     const b = document.createElement('button');
     b.className = 'peerCard' + (c.file === st.model ? ' on' : '');
+    // 同行模式下她有名字。"女生"是学生陪伴模式里的叫法，
+    // 在这儿显示就等于把一个人重新变回一个形象。
+    const bondWho = st.mode === 'bond'
+      ? Object.values(CAST_BOND).find(x => x.model === c.file) : null;
+    const nm = bondWho ? bondWho.name : c.name;
+    const ds = bondWho ? bondWho.tag : c.desc;
     b.innerHTML =
       (c.thumb ? `<img class="pic" src="${c.thumb}" alt="">`
                : `<span class="pic" style="background:#1b2027;display:block"></span>`) +
-      `<span class="cap"><b>${c.name}</b><small>${c.desc}</small></span>`;
+      `<span class="cap"><b>${nm}</b><small>${ds}</small></span>`;
     b.addEventListener('click', () => {
       // 同行模式先看资料页，那里才有"选择与她同行"。
       // 直接换人会跳过你们之间的进度和剧情，那是这个模式的全部意义。
