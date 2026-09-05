@@ -165,8 +165,13 @@ async function loadAnimations() {
   if (!names.length) return false;
 
   mixer = new THREE.AnimationMixer(vrm.scene);
-  const baseName = clips['Sitting-Idle'] ? 'Sitting-Idle'
-                 : clips['Breathing-Idle'] ? 'Breathing-Idle' : names[0];
+  // 底层循环挑最像"她也在学习"的那个。按名字松匹配，
+  // 从 Mixamo 下下来叫 "X Bot@Writing.fbx" 也认得。
+  // 底层循环必须是抬着头的：脸是这个产品的全部，
+  // Writing 整段都低着头，只适合偶尔插播（见 CLIP_POOL）。
+  const BASE_PREF = ['sittingidle', 'breathingidle', 'writing'];
+  const baseName = BASE_PREF.map(p => names.find(n => _norm(n).includes(p))).find(Boolean)
+                 || names[0];
   baseAction = mixer.clipAction(clips[baseName]);
   baseAction.play();
 
@@ -207,7 +212,9 @@ function playClip(name) {
 // 画面就是"隔着桌子看到对面的人"——最自然的构图。
 // anchorAt 是胸口锚点落在画面纵向的位置。桌沿在 0.68，锚点压到 0.78 ——
 // 胸口以下被桌子吃掉一截，看着就是"她坐在桌子后面"，而不是浮在桌前。
-const framing = { anchorAt: 0.78, headAt: 0.14, headroom: 0.12 };
+// 桌沿在 0.76，锚点 0.56 —— 这一组是量出来的：头顶留得住，脸够大，
+// 而手和小臂正好落在桌沿上方一点。再大一点手就被桌子吃掉了。
+const framing = { anchorAt: 0.56, headAt: 0.14, headroom: 0.12 };
 
 function frameCamera() {
   const anchorBone = bones && (bones.chest || bones.spine || bones.hips);
@@ -277,6 +284,8 @@ const ACTIONS = [
 // 待机动作池。Sitting-Talking 拿掉了 —— 角色没在跟谁说话却比划个不停，
 // 看起来轻浮，和"安静陪你自习"的定位不符。
 const CLIP_POOL = [
+  // 写字给的权重最高：她也在学，这是整个产品的主张
+  { name: 'X Bot@Writing',   w: 8, cd: 25000 },
   { name: 'Look-Around',     w: 5, cd: 40000 },
   { name: 'Head-Nod-Yes',    w: 3, cd: 55000 },
   { name: 'Bored',           w: 2, cd: 90000 },
@@ -293,7 +302,8 @@ const CLIP_ROLES = {
   lonely:     ['sadidle', 'defeat', 'disappoint', 'bored', 'breathingidle'],
   welcome:    ['waving', 'happyidle', 'headnod', 'thumbsup'],
   lookAround: ['lookaround'],
-  nod:        ['headnod']
+  nod:        ['headnod'],
+  study:      ['writing', 'typing']
 };
 
 const _norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -885,7 +895,7 @@ const FG_EDGE = {
 // 把桌沿抬到画面的哪个高度。原图只有 13%~15% 的桌面，读起来像个下边框；
 // 抬到 0.68 就有三分之一画面是桌子，人被切在胸口下方 ——
 // 这就是"和她拼一张桌子"的观感，顺带把腿彻底藏了。
-const DESK = { screenTop: 0.68, aoHeight: 0.12 };
+const DESK = { screenTop: 0.76, aoHeight: 0.12 };
 const fgEdgeOf = (name) => FG_EDGE[name] ?? FG_EDGE_DEFAULT;
 
 function applyComp() {
@@ -1051,6 +1061,7 @@ document.querySelectorAll('[data-react]').forEach(b => {
   b.addEventListener('click', () => react(b.getAttribute('data-react')));
 });
 $('btnTalk').addEventListener('click', () => face && face.talk(2.5));
+$('btnHideExpr').addEventListener('click', () => document.body.classList.add('noexpr'));
 
 $('btnCam').addEventListener('click', toggleCam);
 $('btnCamReload').addEventListener('click', reloadCam);

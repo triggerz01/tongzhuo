@@ -207,8 +207,13 @@
   #setup .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
 
   /* 主界面和准备页上不该看到开发者工具条 —— 会话中才显示，按 D 出调试条 */
+  /* 调表情条：自习中默认就在，不用记快捷键。
+     演示前点它自己的"收起"按钮藏掉，或者按 D 也行。 */
   #dbgBar{display:none}
+  body.in-session #dbgBar{display:flex}
   body.debug #dbgBar{display:flex}
+  body.noexpr #dbgBar{display:none}
+  #dbgBar .hide{margin-left:auto}
   body:not(.in-session) .dock:not(#dbgBar){display:none}
   body.debug .dock:not(#dbgBar){display:flex}
   body:not(.in-session) .topbar{display:none}
@@ -717,6 +722,7 @@
   <button data-react="puzzled">疑惑</button>
   <span class="sep"></span>
   <button id="btnTalk">说话口型</button>
+  <button class="hide" id="btnHideExpr">收起</button>
 </div>
 
 <div class="dock">
