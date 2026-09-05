@@ -437,13 +437,15 @@
   #home .p5tag{position:absolute;left:26px;top:22px;font-family:Impact,var(--sans);
     font-size:15px;letter-spacing:.3em;color:#fff;transform:rotate(-8deg);
     text-shadow:2px 2px 0 rgba(0,0,0,.5)}
-  #home .brandWrap{position:relative;display:inline-block;padding:10px 40px;
-    background:#111;transform:skewX(-9deg);
-    clip-path:polygon(0 0,100% 0,96% 100%,3% 94%);
+  /* 不斜。整块标题牌摆正 —— 四个字本来就够有份量，
+     再斜过去只会显得歪，读着别扭。切角保留一点 P5 的锋利。 */
+  #home .brandWrap{position:relative;display:inline-block;padding:12px 46px 14px;
+    background:#111;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%);
     box-shadow:8px 8px 0 rgba(158,27,37,.85);
     animation:p5drop .5s cubic-bezier(.16,1.15,.3,1) both}
-  #home .brandWrap > *{transform:skewX(9deg)}
-  #home .brand{font-size:clamp(40px,6.2vw,66px);text-shadow:4px 4px 0 #9E1B25}
+  #home .brand{font-size:clamp(36px,5.4vw,58px);letter-spacing:.2em;
+    text-indent:.2em;text-shadow:4px 4px 0 #9E1B25}
   #home .tag{animation:p5drop .5s .1s cubic-bezier(.16,1.15,.3,1) both}
   #home .acts{animation:p5drop .5s .2s cubic-bezier(.16,1.15,.3,1) both}
   @keyframes p5drop{from{opacity:0;transform:translate(-40px,18px) rotate(-3deg)}
@@ -549,7 +551,7 @@
     <div class="p5corner tl"></div>
     <div class="p5corner br"></div>
     <div class="p5tag">STUDY WITH ME</div>
-    <div class="brandWrap"><h1 class="brand">同 桌</h1></div>
+    <div class="brandWrap"><h1 class="brand">伴你同行</h1></div>
     <p class="tag">它不会来查你。它只是一直在。</p>
     <div class="acts">
       <button id="btnStart" class="bigBtn"><span>开始自习</span></button>
