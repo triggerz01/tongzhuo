@@ -83,6 +83,11 @@ function show(v) {
 
 /* ---------------- 准备页 ---------------- */
 function renderScenes() {
+  // 老师模式只有教室一个场景，准备页上就不给选了
+  const locked = window.TZRoom && window.TZRoom.sceneLocked && window.TZRoom.sceneLocked();
+  const sec = $('sceneList').closest('section');
+  if (sec) sec.style.display = locked ? 'none' : '';
+  if (locked) return;
   const names = window.TZRoom ? window.TZRoom.scenes() : [];
   const box = $('sceneList');
   box.innerHTML = '';
@@ -117,6 +122,14 @@ function renderDurations() {
 function syncDur() {
   renderDurations();
   $('durCustom').value = state.minutes;
+}
+
+/** 按当前模式调整主界面上有哪些入口 */
+export function paintModeUI() {
+  const teacher = window.TZRoom && window.TZRoom.modeNow
+    && window.TZRoom.modeNow() === 'teacher';
+  const b = $('btnDesk');
+  if (b) b.style.display = teacher ? 'none' : '';
 }
 
 function paintCamStatus() {
@@ -168,6 +181,8 @@ function init() {
     renderScenes(); syncDur(); paintCamStatus();
     show('setup');
   });
+  // 摆件只属于同学陪伴模式；老师站在讲台上，你的桌子不在画面里
+  paintModeUI();
   $('btnBackHome').addEventListener('click', () => show('home'));
   $('btnEnter').addEventListener('click', begin);
   $('durCustom').addEventListener('input', () => {
@@ -193,6 +208,7 @@ function init() {
   initStore(() => show('home'));
   initDesk(() => show('home'));
   initStory();
+  window.TZHomeUI = { paintModeUI };   // 设置页切完模式回来要刷新入口
   window.TZRoom.onSessionEnd(finish);
   setInterval(() => { if (view === 'setup') paintCamStatus(); }, 1500);
   show('home');

@@ -122,7 +122,8 @@ async function loadModel(want) {
       head: g('head'), neck: g('neck'), chest: g('chest') || g('upperChest'),
       spine: g('spine'), hips: g('hips'),
       lShoulder: g('leftUpperArm'), rShoulder: g('rightUpperArm'),
-      lElbow: g('leftLowerArm'), rElbow: g('rightLowerArm')
+      lElbow: g('leftLowerArm'), rElbow: g('rightLowerArm'),
+      lFoot: g('leftFoot'), rFoot: g('rightFoot')     // 老师模式按脚底对地面线
     };
     // 有 Mixamo 动作就让动作定义姿势；没有才手动把 T-pose 掰成伏案坐姿
     const gotAnims = await loadAnimations();
@@ -152,6 +153,37 @@ async function loadModel(want) {
   }
 }
 
+/** 当前模式该用哪个底层循环。老师站着必须站姿，学生坐着必须坐姿。 */
+function pickBase(names) {
+  const list = names || Object.keys(clips);
+  const PREF = roomMode === 'teacher'
+    ? ['standingidle', 'xbotidle', 'breathingidle']
+    : ['sittingidle', 'breathingidle', 'writing'];
+  return PREF.map(p => list.find(n => _norm(n).includes(p))).find(Boolean) || list[0];
+}
+
+/**
+ * 只换底层循环，不重新加载文件。
+ *
+ * 切模式时**不能**去调 loadAnimations() —— 它是异步的，会在换完模型之后
+ * 才完成，然后把 mixer 覆盖成绑在已销毁的旧模型上的那个，
+ * 结果就是动作播了但屏幕上什么都不动。这个坑踩过一次。
+ */
+function rebaseAnimation() {
+  if (!mixer || !Object.keys(clips).length) return null;
+  const name = pickBase();
+  if (!name || !clips[name]) return null;
+  if (baseAction && baseAction.getClip() === clips[name]) return name;
+  const prev = baseAction;
+  baseAction = mixer.clipAction(clips[name]);
+  baseAction.reset();
+  baseAction.setEffectiveWeight(1);
+  baseAction.play();
+  if (prev && prev !== baseAction) prev.stop();
+  if (oneShot) { oneShot.stop(); oneShot = null; }
+  return name;
+}
+
 async function loadAnimations() {
   if (!(window.tz && window.tz.listAnims)) return false;
   let list = [];
@@ -173,9 +205,7 @@ async function loadAnimations() {
   // 从 Mixamo 下下来叫 "X Bot@Writing.fbx" 也认得。
   // 底层循环必须是抬着头的：脸是这个产品的全部，
   // Writing 整段都低着头，只适合偶尔插播（见 CLIP_POOL）。
-  const BASE_PREF = ['sittingidle', 'breathingidle', 'writing'];
-  const baseName = BASE_PREF.map(p => names.find(n => _norm(n).includes(p))).find(Boolean)
-                 || names[0];
+  const baseName = pickBase(names);
   baseAction = mixer.clipAction(clips[baseName]);
   baseAction.play();
 
@@ -230,11 +260,18 @@ function playClip(name) {
 // 桌沿 0.72、锚点 0.56 —— 定稿值，别再动。
 // 写字那一段她低头前倾，裙子和腿会露在小臂下面；0.72 刚好把腿盖住，
 // 同时小臂和手还留在桌面上。再往上（数值更小）手也没了，再往下腿就露。
+/* 两套取景。
+ * 学生：坐着，锚在胸口，桌子切在 0.72，看到上半身。
+ * 老师：站着，锚在脚底，脚踩教室那张图量出来的墙脚线（0.87），全身。 */
 const framing = { anchorAt: 0.56, headAt: 0.14, headroom: 0.12 };
+const framingTeacher = { standAt: 0.87, headAt: 0.17, headroom: 0.10 };
 
 function frameCamera() {
-  const anchorBone = bones && (bones.chest || bones.spine || bones.hips);
-  if (!vrm || !bones || !anchorBone || !bones.head) return;
+  if (!vrm || !bones || !bones.head) return;
+  if (roomMode === 'teacher') return frameCameraStanding();
+
+  const anchorBone = bones.chest || bones.spine || bones.hips;
+  if (!anchorBone) return;
   const anchor = new THREE.Vector3(), head = new THREE.Vector3();
   anchorBone.getWorldPosition(anchor);
   bones.head.getWorldPosition(head);
@@ -250,6 +287,27 @@ function frameCamera() {
 
   camera.position.set(0, centerY, d);
   lookTarget.set(0, centerY, 0);                      // 水平视线，无俯仰
+  camera.lookAt(lookTarget);
+}
+
+/** 站姿：脚底压在教室图的墙脚线上，头顶留一点白 */
+function frameCameraStanding() {
+  const footBone = bones.lFoot || bones.rFoot || bones.hips;
+  if (!footBone) return;
+  const foot = new THREE.Vector3(), head = new THREE.Vector3();
+  footBone.getWorldPosition(foot);
+  bones.head.getWorldPosition(head);
+
+  const f = framingTeacher;
+  const topY = head.y + f.headroom;
+  const span = topY - foot.y;                         // 从脚到头顶的整个人
+  const frac = f.standAt - f.headAt;                  // 这一段占画面多高
+  const H = span / frac;
+  const d = H / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+  const centerY = foot.y + (f.standAt - 0.5) * H;
+
+  camera.position.set(0, centerY, d);
+  lookTarget.set(0, centerY, 0);
   camera.lookAt(lookTarget);
 }
 
@@ -299,7 +357,10 @@ const ACTIONS = [
 /* Mixamo 动作的调度：和程序化那套同一个哲学——间隔非周期、有冷却、加权 */
 // 待机动作池。Sitting-Talking 拿掉了 —— 角色没在跟谁说话却比划个不停，
 // 看起来轻浮，和"安静陪你自习"的定位不符。
-const CLIP_POOL = [
+/* 当前是哪一种陪伴。整份文件里凡是行为不一样的地方都看它。 */
+let roomMode = 'student';          // 'student' | 'teacher'
+
+const CLIP_POOL_STUDENT = [
   // 写字给的权重最高：她也在学，这是整个产品的主张
   { name: 'X Bot@Writing',   w: 8, cd: 25000 },
   { name: 'Look-Around',     w: 5, cd: 40000 },
@@ -307,12 +368,22 @@ const CLIP_POOL = [
   { name: 'Bored',           w: 2, cd: 90000 },
   { name: 'Breathing-Idle',  w: 2, cd: 90000 }
 ];
+
+/* 老师站着监考，待机要"少动但一直在"。写字那类当然不能用，
+   低头看表（Bored）和扫视全场（Look-Around）才是监考的动作。 */
+const CLIP_POOL_TEACHER = [
+  { name: 'Look-Around',        w: 6, cd: 35000 },
+  { name: 'Bored',              w: 4, cd: 70000 },   // 当"看表/等得不耐烦"用
+  { name: 'X Bot@Hard Head Nod', w: 2, cd: 90000 }
+];
+
+const poolNow = () => (roomMode === 'teacher' ? CLIP_POOL_TEACHER : CLIP_POOL_STUDENT);
 const clipLast = {};
 let clipNext = 10 + Math.random() * 12;
 
 /* 动作按"角色"匹配，不认死文件名 —— 你从 Mixamo 下什么名字都能用。
  * 候选按优先级排，找到第一个存在的就用。 */
-const CLIP_ROLES = {
+const CLIP_ROLES_STUDENT = {
   praise:     ['thumbsup', 'clapping', 'cheer', 'happyidle', 'excited', 'headnod'],
   disappoint: ['handsonhips', 'angry', 'annoyed', 'arguing', 'dismiss', 'shakinghead', 'lookaround'],
   lonely:     ['sadidle', 'defeat', 'disappoint', 'bored', 'breathingidle'],
@@ -322,10 +393,28 @@ const CLIP_ROLES = {
   study:      ['writing', 'typing']
 };
 
+/* 老师版。夸奖用点头不用鼓掌 —— 含蓄，也更像老师。
+   批评用"指着你"，这是全场最有压迫感的一个动作。
+   注意候选顺序：hardheadnod 要排在 headnod 前面，
+   否则 _norm 松匹配会先撞上 Head-Nod-Yes。 */
+const CLIP_ROLES_TEACHER = {
+  praise:     ['hardheadnod', 'headnod', 'clapping'],
+  // Angry Point 是朝镜头指的，正面看透视压缩得厉害，读不出来；
+  // Pointing 和 Angry 的手臂抬得高，小尺寸下才看得清
+  disappoint: ['pointing', 'angry', 'angrypoint', 'shakingheadno'],
+  lonely:     ['bored', 'shakingheadno', 'sadidle', 'lookaround'],
+  welcome:    ['hardheadnod', 'headnod', 'waving'],
+  lookAround: ['lookaround'],
+  nod:        ['hardheadnod', 'headnod'],
+  study:      []
+};
+
+const rolesNow = () => (roomMode === 'teacher' ? CLIP_ROLES_TEACHER : CLIP_ROLES_STUDENT);
+
 const _norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 function clipFor(role) {
-  const cands = CLIP_ROLES[role] || [];
+  const cands = rolesNow()[role] || [];
   const keys = Object.keys(clips);
   for (const c of cands) {
     const hit = keys.find(k => _norm(k).includes(c));
@@ -341,7 +430,7 @@ function updateClipScheduler(dt) {
   clipNext = 12 + Math.random() * 20;
 
   const now = Date.now();
-  let pool = CLIP_POOL.filter(c => clips[c.name] && now - (clipLast[c.name] || 0) > c.cd);
+  let pool = poolNow().filter(c => clips[c.name] && now - (clipLast[c.name] || 0) > c.cd);
   if (!pool.length) return;
   const total = pool.reduce((s, c) => s + c.w, 0);
   let r = Math.random() * total;
@@ -459,6 +548,7 @@ function tick() {
   if (mixer && !frozen) mixer.update(dt);
   if (face) face.update(dt);       // 冻结时表情照常跑，这是冻结的意义
   if (!frozen) updateIdle(dt);
+  updateTeacherIdle();
   updatePose(dt);              // 姿势层压在动作之上，冻结时也照常混合
   if (vrm) vrm.update(dt);
   renderer.render(scene, camera);
@@ -608,6 +698,7 @@ function speak(kind, minHold) {
 function react(name, silent) {
   const r = REACTIONS[name];
   if (!r || !face) return false;
+  dropHipsPose();                 // 手臂要用来做动作，叉腰先松开
   face.applyRecipeHold(r.recipe, r.level, r.hold);
   if (r.yawn) face.yawn(1.6);
   if (r.role) {
@@ -621,6 +712,34 @@ function react(name, silent) {
   }
   return true;
 }
+
+/**
+ * 切陪伴模式。设置页改完模式和人物之后调这里。
+ * 会做四件事：换台词本、换动作映射（靠 roomMode）、
+ * 锁定/恢复场景、重新取景（坐姿 vs 站姿）。
+ */
+function setRoomMode(mode) {
+  const next = (mode === 'teacher') ? 'teacher' : 'student';
+  if (next === roomMode) return roomMode;
+  roomMode = next;
+  voice.setLineSet(roomMode);
+  hipsOn = false; hipsNextAt = 0;
+  applyPose(null, { seconds: 0.2 });
+
+  // 老师模式只有教室这一个场景，锁死；切回学生就回到第一个场景
+  const want = roomMode === 'teacher'
+    ? SCENES.findIndex(x => /教室/.test(x.name))
+    : 0;
+  applyScene(want >= 0 ? want : sceneIdx);
+
+  // 底层循环坐姿站姿不一样，重挑一个就行 —— 千万别在这儿重新加载，见 rebaseAnimation 的注释
+  rebaseAnimation();
+  frameCamera();
+  return roomMode;
+}
+
+/** 老师模式只有一个场景，界面上不该给切换 */
+const sceneLocked = () => roomMode === 'teacher';
 
 /* ---------------- 静态姿势 ----------------
  * VRoid Studio 的 .vroidpose 是"每根人形骨骼一个四元数"，
@@ -687,6 +806,28 @@ async function applyPose(name, opts) {
   const sec = Math.max(0.05, o.seconds ?? 0.45);
   poseLayer = { rot, w: poseLayer ? poseLayer.w : 0, target: 1, speed: 1 / sec, name };
   return '套上 ' + rot.length + ' 根骨骼，' + sec + ' 秒渐入';
+}
+
+/* 老师待机的叉腰。站着不动太久很死，隔一阵叉一次腰是监考最典型的姿态。
+ * 有反应要做的时候先脱掉 —— 姿势层权重是 1，会把动作的手臂盖掉。 */
+let hipsNextAt = 0, hipsOn = false;
+
+function updateTeacherIdle() {
+  if (roomMode !== 'teacher' || !session) return;
+  const now = Date.now();
+  if (!hipsNextAt) { hipsNextAt = now + (18 + Math.random() * 22) * 1000; return; }
+  if (now < hipsNextAt) return;
+  hipsOn = !hipsOn;
+  applyPose(hipsOn ? 'hands-on-hips' : null, { seconds: 0.8 });
+  hipsNextAt = now + (hipsOn ? 14 + Math.random() * 12 : 22 + Math.random() * 20) * 1000;
+}
+
+/** 反应要用手臂，先把叉腰脱掉 */
+function dropHipsPose() {
+  if (!hipsOn) return;
+  hipsOn = false;
+  hipsNextAt = Date.now() + 25000;
+  applyPose(null, { seconds: 0.35 });
 }
 
 /** 每帧混合。必须在 mixer.update() 之后跑，否则会被动画覆盖掉。 */
@@ -1155,6 +1296,28 @@ function sizeDesk(s) {
   ao.style.height = `${(DESK.aoHeight * 100).toFixed(1)}%`;
 }
 
+/* 老师模式的前景是**教室照片自己的前排课桌**，不是共用的那张桌子。
+ * 所以不放大、和背景严丝合缝对齐，只把 CLASS.fgTop 以下切出来盖在她身上 ——
+ * 她站在课桌后面，纵深就出来了。摆件系统在这个模式下整个关掉。 */
+const CLASS = {
+  fgTop: 0.70,      // 前排课桌从这儿开始，盖住她的小腿
+  shadow: 0.055     // 脚下那片接触阴影的高度
+};
+
+function sizeClassroom(s) {
+  const fg = $('fg');
+  fg.style.backgroundSize = 'cover';
+  fg.style.backgroundPosition = 'center';
+  fg.style.clipPath = `inset(${(CLASS.fgTop * 100).toFixed(1)}% 0 0 0)`;
+  fg.style.filter = `brightness(${comp.brightness}) saturate(${comp.saturate})`;
+
+  // 脚下的接触阴影。站着的人没有影子会飘，这一片压在墙脚线上方
+  const ao = $('deskAO');
+  ao.style.display = 'block';
+  ao.style.bottom = `${((1 - framingTeacher.standAt) * 100).toFixed(1)}%`;
+  ao.style.height = `${(CLASS.shadow * 100).toFixed(1)}%`;
+}
+
 function applyScene(i) {
   if (!SCENES.length) return;
   sceneIdx = (i + SCENES.length) % SCENES.length;
@@ -1173,7 +1336,7 @@ function applyScene(i) {
     // 清空内联样式会回落回 none —— 这层遮挡以前一直没生效就是栽在这儿。
     fg.style.display = 'block';
     fg.style.backgroundImage = `url("${s.img}")`;
-    sizeDesk(s);
+    if (roomMode === 'teacher') sizeClassroom(s); else sizeDesk(s);
   } else {
     fg.style.display = 'none';
     $('deskAO').style.display = 'none';
@@ -1185,6 +1348,10 @@ function applyScene(i) {
     bg.style.background = s.css;
     bg.style.backgroundSize = 'cover';
   }
+  // 摆件只属于同学陪伴模式 —— 老师站在讲台上，你的桌子不在画面里
+  const layer = $('deskLayer');
+  if (layer) layer.style.display = (roomMode === 'teacher') ? 'none' : '';
+
   applyComp();
   say('（' + s.name + '）', 1600);
 }
@@ -1272,6 +1439,8 @@ function stopSession(reason) {
   // 关掉它，但 pipWanted 留着 —— 下一场开始会自动开回来。
   if (pipOn) setPip(false);
   greeted = false;
+  hipsOn = false; hipsNextAt = 0;
+  applyPose(null, { seconds: 0.3 });
   emit('session-end', summary);
   sessionEndCbs.forEach(fn => { try { fn(summary); } catch (e) { console.error(e); } });
 }
@@ -1372,6 +1541,10 @@ loadScenes().then((real) => {
   voice.setCharacter(settings.get().model);
   voice.warmup();          // 先把时长量出来，第一次触发口型就是准的
   shots.prune();           // 抓拍只留 7 天，启动时清一次
+  // 上次退出时是老师模式的话，进来就该是老师模式
+  const savedMode = settings.get().mode;
+  if (savedMode === 'teacher') { roomMode = 'student'; setRoomMode('teacher'); }
+  else voice.setLineSet('student');
 })();
 
 // 用户不该为了用摄像头去手动开一个 Python 进程 —— 启动时自己拉起来。
@@ -1407,6 +1580,11 @@ window.TZRoom = {
                         LINK.reactCooldownSec * 1000 - (Date.now() - lastReactAt)) / 1000 }),
   reactAs: react,
   shots,
+  mode: setRoomMode,
+  modeNow: () => roomMode,
+  sceneLocked,
+  classFraming: framingTeacher,
+  classFg: CLASS,
   pose: applyPose,
   poseOff: () => applyPose(null),
   on,          // 给 story.js 订阅事件

@@ -79,6 +79,74 @@ export const LINES = {
   hum:  [['idle_hum_01', '']]
 };
 
+/* 老师版台词。语气更硬，但**不羞辱** —— 严厉和刻薄是两回事，
+   一句"你是怎么跟我保证的"点到为止，比骂一顿更像一个真的老师。
+   目前没有录音，voice.play 找不到音频包会自动退化成只出字幕。 */
+export const LINES_TEACHER = {
+  sessionStart: [
+    ['t_start_01', '坐好，开始吧。'],
+    ['t_start_02', '都准备好了？那就开始。'],
+    ['t_start_03', '时间开始了。']
+  ],
+  cameraOn: [
+    ['t_cam_01', '我看着呢。']
+  ],
+  sessionFinish: [
+    ['t_finish_01', '时间到，今天就到这里。'],
+    ['t_finish_02', '今天完成得不错，收拾一下。'],
+    ['t_finish_03', '到点了，明天这个时间。']
+  ],
+  sessionEarlyEnd: [
+    ['t_early_01', '就到这儿了？'],
+    ['t_early_02', '提前走可以，你自己心里有数。']
+  ],
+  praise: [
+    ['t_praise_01', '不错，很专注。'],
+    ['t_praise_02', '这个状态保持住。'],
+    ['t_praise_03', '嗯，可以。'],
+    ['t_praise_04', '一直没抬头，这才像话。']
+  ],
+  phone: [
+    ['t_phone_01', '又在玩手机了，你是怎么跟我保证的。'],
+    ['t_phone_02', '手机放下。'],
+    ['t_phone_03', '我在这儿站着呢。'],
+    ['t_phone_04', '这已经是第几次了。']
+  ],
+  away: [
+    ['t_away_01', '怎么走了这么久，这就坚持不下去了？'],
+    ['t_away_02', '人呢？'],
+    ['t_away_03', '出去这么久，干什么去了。']
+  ],
+  welcome: [
+    ['t_welcome_01', '你回来了，收拾好心情赶紧专注学习。'],
+    ['t_welcome_02', '回来了就坐好。'],
+    ['t_welcome_03', '继续，刚才那一段不算。']
+  ],
+  sleepy: [
+    ['t_sleepy_01', '精神点。'],
+    ['t_sleepy_02', '困了就去洗把脸，别趴着。']
+  ],
+  puzzled: [
+    ['t_puzzled_01', '挡着镜头做什么。'],
+    ['t_puzzled_02', '我看不见你了。']
+  ],
+  backturn: [
+    ['t_backturn_01', '转过来。'],
+    ['t_backturn_02', '背对着我做什么。']
+  ],
+  // 老师不叹气不打哈欠，无字音效这一类留空 —— play() 取不到就什么都不做
+  sigh: [], yawn: [], hum: []
+};
+
+const SETS = { student: LINES, teacher: LINES_TEACHER };
+let lineSet = LINES;
+
+/** 切台词本。mode 是 'student' | 'teacher' */
+export function setLineSet(mode) {
+  lineSet = SETS[mode] || LINES;
+  return mode;
+}
+
 const PACK = { girl: 'AvatarSample_A.vrm' };     // 哪个模型用哪套音频包
 
 let character = 'girl';
@@ -105,7 +173,7 @@ export function setVolume(v) { volume = Math.max(0, Math.min(1, v)); return volu
 
 /** 从一类里挑一条，尽量不连着重复 */
 function pick(kind) {
-  const rows = LINES[kind];
+  const rows = lineSet[kind];
   if (!rows || !rows.length) return null;
   if (rows.length === 1) return rows[0];
   let i, guard = 0;
@@ -181,7 +249,7 @@ export function stop() {
 /** 预热：把音频的时长先量出来，第一次触发时口型就是准的 */
 export function warmup() {
   if (!character) return;
-  for (const kind in LINES) {
+  for (const kind in LINES) {          // 只有女生有音频包，热的就是它
     for (const [file] of LINES[kind]) {
       const a = new Audio(`../assets/voice/${character}/${file}.mp3`);
       a.preload = 'metadata';

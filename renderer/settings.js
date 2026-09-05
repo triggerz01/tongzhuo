@@ -25,11 +25,15 @@ const CAST = [
 
 const MODES = [
   { id: 'student', name: '学生陪伴', desc: '一个同龄人坐在对面。她不查你，只是一直在。' },
-  { id: 'teacher', name: '老师监督', desc: '语气和动作都更严厉。做了模型，行为还在做。',
-    locked: true }
+  { id: 'teacher', name: '老师监督', desc: '老师站在讲台上看着你。语气更硬，但不羞辱人。' }
 ];
 
-const DEFAULTS = { mode: 'student', model: 'AvatarSample_A.vrm' };
+/* 每种模式的默认人物。切模式时自动换成对应角色 ——
+   总不能让老师坐在你对面写作业。 */
+const MODE_DEFAULT = { student: 'AvatarSample_A.vrm', teacher: 'teacher.vrm' };
+
+const DEFAULTS = { mode: 'student', model: 'AvatarSample_A.vrm',
+                   lastStudent: 'AvatarSample_A.vrm' };
 
 export const settings = {
   get() {
@@ -88,9 +92,7 @@ function renderModes() {
     b.className = 'modeCard' + (m.id === cur ? ' on' : '') + (m.locked ? ' lock' : '');
     b.innerHTML = `${m.locked ? '<span class="soon">敬请期待</span>' : ''}
                    <b>${m.name}</b><small>${m.desc}</small>`;
-    if (!m.locked) {
-      b.addEventListener('click', () => { settings.set({ mode: m.id }); render(); });
-    }
+    if (!m.locked) b.addEventListener('click', () => switchMode(m.id));
     box.appendChild(b);
   });
 }
@@ -101,7 +103,9 @@ function renderPeers() {
   box.innerHTML = '';
   // 老师模式只有老师，学生模式不列老师
   const want = st.mode === 'teacher' ? 'teacher' : 'student';
-  cast.filter(c => c.role === want).forEach((c) => {
+  const rows = cast.filter(c => c.role === want);
+  $('peerTitle').textContent = want === 'teacher' ? '选择监督者' : '选择同桌';
+  rows.forEach((c) => {
     const b = document.createElement('button');
     b.className = 'peerCard' + (c.file === st.model ? ' on' : '');
     b.innerHTML =
@@ -112,6 +116,40 @@ function renderPeers() {
     box.appendChild(b);
   });
   $('peerSec').style.display = box.children.length ? '' : 'none';
+  const tip = $('peerTip');
+  if (tip) {
+    tip.style.display = (want === 'teacher') ? '' : 'none';
+    tip.textContent = '监督者目前只有一位。以后可以放更多的 .vrm 进 assets/models，'
+                    + '在 settings.js 的 CAST 里登记 role: "teacher" 就会出现在这里。';
+  }
+}
+
+/** 换模式：模式本身、对应人物、房间三样一起换，走同一个转场 */
+async function switchMode(id) {
+  const st = settings.get();
+  if (st.mode === id) return;
+
+  // 离开学生模式前记住你选的是男生还是女生，切回来要还原
+  const patch = { mode: id };
+  if (st.mode === 'student') patch.lastStudent = st.model;
+  const want = (id === 'student')
+    ? (st.lastStudent || MODE_DEFAULT.student)
+    : MODE_DEFAULT.teacher;
+  patch.model = want;
+  settings.set(patch);
+  render();
+
+  const who = cast.find(c => c.file === want);
+  await withSwap(async () => {
+    if (window.TZRoom) {
+      // 顺序要紧：先切模式（决定坐姿还是站姿、哪套动作和台词），
+      // 再加载模型，最后取景 —— 反过来会按错误的模式取一次景
+      window.TZRoom.mode(id);
+      if (window.TZRoom.reload) await window.TZRoom.reload('../assets/models/' + want);
+      if (window.TZRoom.voice) window.TZRoom.voice.setCharacter(want);
+    }
+  }, id === 'teacher' ? '老师监督' : '学生陪伴');
+  if (who) await reveal(who);
 }
 
 async function pick(c) {
@@ -119,6 +157,8 @@ async function pick(c) {
   settings.set({ model: c.file });
   renderPeers();
   // 立刻换给你看 —— 选完还要猜长什么样，那这个选择就没意义
+  // 在学生模式里换人，记下来；切去老师再切回来要还原
+  if (c.role === 'student') settings.set({ lastStudent: c.file });
   await withSwap(async () => {
     if (window.TZRoom && window.TZRoom.reload) {
       await window.TZRoom.reload('../assets/models/' + c.file);
@@ -147,5 +187,9 @@ export function initSettings(show) {
     render();
     show('settings');
   });
-  $('btnSetBack').addEventListener('click', () => show('home'));
+  $('btnSetBack').addEventListener('click', () => {
+    show('home');
+    // 模式可能变了，主界面上"布置桌面"该不该在得重算
+    if (window.TZHomeUI) window.TZHomeUI.paintModeUI();
+  });
 }
