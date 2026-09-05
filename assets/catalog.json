@@ -37,8 +37,8 @@
     "type": "item",
     "price": 120,
     "description": "给夜里的桌子添一盏不刺眼的灯。",
-    "preview": "assets/items/lamp.svg",
-    "asset": "assets/items/lamp.svg",
+    "preview": "assets/items/lamp.png",
+    "asset": "assets/items/lamp.png",
     "available": true,
     "cells": [
       1,
@@ -51,8 +51,8 @@
     "type": "item",
     "price": 80,
     "description": "不用怎么管，放着就行。",
-    "preview": "assets/items/plant.svg",
-    "asset": "assets/items/plant.svg",
+    "preview": "assets/items/plant.png",
+    "asset": "assets/items/plant.png",
     "available": true,
     "cells": [
       1,
@@ -65,8 +65,8 @@
     "type": "item",
     "price": 60,
     "description": "半杯凉掉的咖啡。",
-    "preview": "assets/items/mug.svg",
-    "asset": "assets/items/mug.svg",
+    "preview": "assets/items/mug.png",
+    "asset": "assets/items/mug.png",
     "available": true,
     "cells": [
       1,
@@ -79,12 +79,12 @@
     "type": "item",
     "price": 100,
     "description": "翻过的和没翻过的，摞在一起。",
-    "preview": "assets/items/books.svg",
-    "asset": "assets/items/books.svg",
+    "preview": "assets/items/books.png",
+    "asset": "assets/items/books.png",
     "available": true,
     "cells": [
       2,
-      1
+      2
     ]
   },
   {
@@ -93,11 +93,11 @@
     "type": "item",
     "price": 260,
     "description": "它不学习，但它也不走。",
-    "preview": "assets/items/cat.svg",
-    "asset": "assets/items/cat.svg",
+    "preview": "assets/items/cat.png",
+    "asset": "assets/items/cat.png",
     "available": true,
     "cells": [
-      2,
+      3,
       2
     ]
   },
